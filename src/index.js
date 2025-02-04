@@ -33,6 +33,16 @@ client.on('interactionCreate', async (interaction) => {
         const apiLatency = Math.round(client.ws.ping);
         await interaction.editReply(`Pong! Latency is ${latency}ms. API Latency is ${apiLatency}ms.`);
     }
+
+    if (interaction.commandName === 'search-anilist-user') {
+        const command = client.commands.get('search-anilist-user');
+        await command.execute(interaction);
+    }
+
+    if (interaction.commandName === 'search-') {
+        const command = client.commands.get('search-anime');
+        await command.execute(interaction);
+    }
 });
 
 client.login(process.env.DISCORD_TOKEN);
