@@ -43,6 +43,7 @@ module.exports = {
 
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
+            console.error('Error fetching AniList user data:', error);
             await interaction.editReply('Failed to fetch AniList user data. Make sure the username is correct.');
         }
     },
