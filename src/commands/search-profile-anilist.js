@@ -3,7 +3,7 @@ const { fetchAniListUser } = require('../utils/querry');
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('search-profile')
+    .setName('search-profile-anilist')
     .setDescription('Fetch AniList user profile')
     .addStringOption(option =>
       option.setName('username')
