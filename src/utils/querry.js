@@ -37,8 +37,21 @@ async function fetchAniListUser(username) {
                             }
                         }
                     }
+                    manga {
+                        nodes {
+                            id
+                            title {
+                                romaji
+                                english
+                            }
+                            averageScore
+                            coverImage {
+                                large
+                            }
+                        }
+                    }
                 }
-            }
+            }        
         }
     `;
 
