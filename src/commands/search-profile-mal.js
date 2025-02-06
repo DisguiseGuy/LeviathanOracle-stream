@@ -32,7 +32,7 @@ module.exports = {
         .setURL(`https://myanimelist.net/profile/${userData.username}`)
         .setThumbnail(userData.images.jpg.image_url)
         .addFields(
-          { name: 'Anime Stats', value: `**Total Entires**: ${animeStats.total_entries || 'N/A'}\n**Mean Score**: ${animeStats.mean_score || 'N/A'}\n**Days Watched**: ${animeStats.days_watched || 'N/A'}`, inline: true },
+          { name: 'Anime Stats', value: `**Total Entries**: ${animeStats.total_entries || 'N/A'}\n**Mean Score**: ${animeStats.mean_score || 'N/A'}\n**Days Watched**: ${animeStats.days_watched || 'N/A'}`, inline: true },
           { name: 'Manga Stats', value: `**Total Entries**: ${mangaStats.total_entries || 'N/A'}\n**Mean Score**: ${mangaStats.mean_score || 'N/A'}\n**Days Read**: ${mangaStats.days_read || 'N/A'}`, inline: true },
         );
 
@@ -56,8 +56,9 @@ module.exports = {
       collector.on('collect', async i => {
         if (i.customId === 'fav_anime') {
           try {
-            const favAnimeResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/favorites/anime`);
-            const favAnime = favAnimeResponse.data.data || [];
+            const favAnimeResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/favorites`);
+            console.log('Favorite Anime:', favAnimeResponse.data); // Log the favorite anime data to verify the structure
+            const favAnime = favAnimeResponse.data.data.anime || [];
             if (!favAnime.length) {
               await i.update({ content: 'No favorite anime found for this user.', components: [] });
               return;
@@ -81,6 +82,11 @@ module.exports = {
             const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
 
             selectCollector.on('collect', async selectInteraction => {
+              if (!selectInteraction.values || !selectInteraction.values[0]) {
+                await selectInteraction.reply({ content: 'No anime selected.', ephemeral: true });
+                return;
+              }
+
               const selectedAnimeId = selectInteraction.values[0];
               const selectedAnime = favAnime.find(anime => anime.mal_id.toString() === selectedAnimeId);
 
@@ -111,8 +117,9 @@ module.exports = {
           }
         } else if (i.customId === 'fav_manga') {
           try {
-            const favMangaResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/favorites/manga`);
-            const favManga = favMangaResponse.data.data || [];
+            const favMangaResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/favorites`);
+            console.log('Favorite Manga:', favMangaResponse.data); // Log the favorite manga data to verify the structure
+            const favManga = favMangaResponse.data.data.manga || [];
             if (!favManga.length) {
               await i.update({ content: 'No favorite manga found for this user.', components: [] });
               return;
@@ -136,6 +143,11 @@ module.exports = {
             const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
 
             selectCollector.on('collect', async selectInteraction => {
+              if (!selectInteraction.values || !selectInteraction.values[0]) {
+                await selectInteraction.reply({ content: 'No manga selected.', ephemeral: true });
+                return;
+              }
+
               const selectedMangaId = selectInteraction.values[0];
               const selectedManga = favManga.find(manga => manga.mal_id.toString() === selectedMangaId);
 
