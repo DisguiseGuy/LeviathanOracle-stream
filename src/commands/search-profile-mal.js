@@ -66,7 +66,7 @@ module.exports = {
 
             const favAnimeOptions = favAnime.map(anime => ({
               label: anime.title,
-              description: anime.title_english || 'No English title',
+              description: 'No English title',
               value: anime.mal_id.toString(),
             }));
 
@@ -95,14 +95,31 @@ module.exports = {
                 return;
               }
 
+              // Fetch full anime details to get the score
+              const animeDetailsResponse = await axios.get(`https://api.jikan.moe/v4/anime/${selectedAnimeId}/full`);
+              const animeDetails = animeDetailsResponse.data.data;
+
+              // Fetch user's anime list to get the user's score
+              /*
+              let userScore = 'N/A';
+              try {
+                const userAnimeListResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/animelist`);
+                const userAnimeList = userAnimeListResponse.data.data;
+                const userAnime = userAnimeList.find(anime => anime.anime.mal_id.toString() === selectedAnimeId);
+                userScore = userAnime ? userAnime.score : 'N/A';
+              } catch (error) {
+                console.error('Failed to fetch user anime list:', error);
+              }
+              */
+
               const animeEmbed = new EmbedBuilder()
                 .setColor(0x2e51a2)
-                .setTitle(selectedAnime.title)
-                .setURL(`https://myanimelist.net/anime/${selectedAnime.mal_id}`)
-                .setImage(selectedAnime.images.jpg.image_url)
+                .setTitle(animeDetails.title)
+                .setURL(`https://myanimelist.net/anime/${animeDetails.mal_id}`)
+                .setImage(animeDetails.images.jpg.image_url)
                 .addFields(
-                  { name: 'English Title', value: selectedAnime.title_english || 'N/A', inline: true },
-                  { name: 'Score', value: selectedAnime.score?.toString() || 'N/A', inline: true },
+                  { name: 'Score', value: animeDetails.score?.toString() || 'N/A', inline: true },
+                  // { name: 'Your Score', value: userScore.toString(), inline: true },
                 );
 
               await selectInteraction.reply({ embeds: [animeEmbed], ephemeral: true });
@@ -127,7 +144,7 @@ module.exports = {
 
             const favMangaOptions = favManga.map(manga => ({
               label: manga.title,
-              description: manga.title_english || 'No English title',
+              description: 'No English title',
               value: manga.mal_id.toString(),
             }));
 
@@ -162,7 +179,6 @@ module.exports = {
                 .setURL(`https://myanimelist.net/manga/${selectedManga.mal_id}`)
                 .setImage(selectedManga.images.jpg.image_url)
                 .addFields(
-                  { name: 'English Title', value: selectedManga.title_english || 'N/A', inline: true },
                   { name: 'Score', value: selectedManga.score?.toString() || 'N/A', inline: true },
                 );
 

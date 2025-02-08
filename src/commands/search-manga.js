@@ -1,102 +1,85 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const axios = require('axios');
 
-const anilistAPI = 'https://graphql.anilist.co';
-
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('search-manga')
-        .setDescription('Search for manga on AniList')
-        .addStringOption(option =>
-            option.setName('query')
-                .setDescription('Search query')
-                .setRequired(true)),
-    async execute(interaction) {
-        const query = interaction.options.getString('query');
-
-        await interaction.deferReply(); // If fetching takes time
-
-        const searchQuery = `
-        query ($search: String) {
-            Page(perPage: 10) {
-                media(search: $search, type: MANGA) {
-                    id
-                    title {
-                        romaji
-                        english
-                    }
-                    averageScore
-                    description
-                    genres
-                    coverImage {
-                        large
-                    }
-                }
-            }
-        }
-        `;
-        
-        const variables = { search: query };
-        
-        try {
-            const response = await axios.post(anilistAPI, {
-                query: searchQuery,
-                variables,
-            });
-        
-            const mangaList = response.data.data.Page.media;
-        
-            if (mangaList.length === 0) {
-                await interaction.editReply('No results found.');
-                return;
-            }
-        
-            const buttons = mangaList.map(manga => new ButtonBuilder()
-                .setCustomId(`manga_${manga.id}`)
-                .setLabel(manga.title.romaji || manga.title.english)
-                .setStyle(ButtonStyle.Primary)
-            );
-        
-            const rows = [];
-            for (let i = 0; i < buttons.length; i += 5) {
-                rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
-            }
-        
-            await interaction.editReply({ content: 'Select a manga to view details:', components: rows });
-        
-            const filter = i => i.customId.startsWith('manga_') && i.user.id === interaction.user.id;
-            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
-        
-            collector.on('collect', async i => {
-                const mangaId = i.customId.split('_')[1];
-                const selectedManga = mangaList.find(manga => manga.id == mangaId);
-        
-                // Log the selected manga to check if genres are available
-                console.log(selectedManga);
-        
-                // Clean up the description by removing HTML tags
-                const cleanDescription = selectedManga.description ? selectedManga.description.replace(/<\/?[^>]+(>|$)/g, "") : 'No description available.';
-        
-                // Join genres into a comma-separated string
-                const genres = selectedManga.genres ? selectedManga.genres.join(', ') : 'No genres available';
-        
-                const embed = new EmbedBuilder()
-                .setTitle(selectedManga.title.romaji || selectedManga.title.english)
-                .setURL(`https://anilist.co/manga/${selectedManga.id}`)
-                .setDescription(`**Score**: **${selectedManga.averageScore}**\n**Genres**: ${genres}\n**Description**: ${cleanDescription}`)
-                .setImage(selectedManga.coverImage.large);
-        
-                await i.update({ content: '', embeds: [embed], components: [] });
-            });
-        
-            collector.on('end', collected => {
-                if (collected.size === 0) {
-                    interaction.editReply({ content: 'No selection made.', components: [] });
-                }
-            });
-        } catch (error) {
-            console.error(error);
-            await interaction.editReply('There was an error fetching the manga details.');
-        }
+  data: new SlashCommandBuilder()
+    .setName('search-manga')
+    .setDescription('Fetch manga details from Jikan API')
+    .addStringOption(option =>
+      option.setName('manga')
+        .setDescription('Manga name')
+        .setRequired(true)),
+  async execute(interaction) {
+    const query = interaction.options.getString('manga');
+    if (!query) {
+      await interaction.reply({ content: 'Please provide a manga name.', ephemeral: true });
+      return;
     }
+    await interaction.deferReply();
+
+    try {
+      // GET request to Jikan API for manga search (limit to 10 results)
+      const response = await axios.get('https://api.jikan.moe/v4/manga', {
+        params: { q: query, limit: 10 }
+      });
+
+      const mangaList = response.data.data;
+      if (!mangaList || mangaList.length === 0) {
+        await interaction.editReply('No results found.');
+        return;
+      }
+
+      // Create buttons for each manga result using Jikan's mal_id as identifier
+      const buttons = mangaList.map(manga => new ButtonBuilder()
+        .setCustomId(`manga_${manga.mal_id}`)
+        .setLabel(manga.title)
+        .setStyle(ButtonStyle.Primary)
+      );
+
+      const rows = [];
+      for (let i = 0; i < buttons.length; i += 5) {
+        rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+      }
+
+      await interaction.editReply({ content: 'Select a manga to view details:', components: rows });
+
+      const filter = i => i.customId.startsWith('manga_') && i.user.id === interaction.user.id;
+      const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+
+      collector.on('collect', async i => {
+        const mangaId = i.customId.split('_')[1];
+        const selectedManga = mangaList.find(manga => String(manga.mal_id) === mangaId);
+        if (!selectedManga) {
+          await i.reply({ content: "Manga not found.", ephemeral: true });
+          return;
+        }
+
+        // Clean up the synopsis by removing HTML tags and limiting its length
+        let cleanSynopsis = selectedManga.synopsis
+          ? selectedManga.synopsis.replace(/<\/?[^>]+(>|$)/g, "")
+          : 'No description available.';
+        if (cleanSynopsis.length > 500) {
+          cleanSynopsis = cleanSynopsis.substring(0, 500) + '...';
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle(selectedManga.title)
+          .setURL(selectedManga.url)
+          .setDescription(`**Score:** ${selectedManga.score || 'N/A'}\n**Volumes:** ${selectedManga.volumes || 'N/A'}\n**Synopsis:** ${cleanSynopsis}`)
+          .setImage(selectedManga.images.jpg.image_url)
+          .setColor(0x00AE86);
+
+        await i.update({ content: '', embeds: [embed], components: [] });
+      });
+
+      collector.on('end', collected => {
+        if (collected.size === 0) {
+          interaction.editReply({ content: 'No selection made.', components: [] });
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching manga from Jikan:', error.response ? error.response.data : error);
+      await interaction.editReply({ content: 'Failed to fetch manga details.', components: [] });
+    }
+  },
 };
