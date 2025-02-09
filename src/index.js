@@ -1,7 +1,8 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
+// const path = require('path');
+// const schedule = require('node-schedule');
 
 // Create a new client instance
 const client = new Client({
