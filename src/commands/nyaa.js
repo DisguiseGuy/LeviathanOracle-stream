@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { fetchRSSFeedWithRetries, filterEnglishAnimeItems } = require('../utils/nyaaRss');
+const { fetchRSSFeedWithRetries, filterEnglishAnimeItems } = require('../utils/nyaaRSS');
 
 module.exports = {
   data: new SlashCommandBuilder()
