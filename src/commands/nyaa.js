@@ -13,7 +13,7 @@ module.exports = {
     ),
   async execute(interaction) {
     // Defer the reply right away so the interaction doesn’t timeout
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ ephemeral: false });
 
     try {
       // Get the user’s search term
