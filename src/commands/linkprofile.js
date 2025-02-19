@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const db = require('../database/db.js');
 
 module.exports = {
@@ -23,44 +23,80 @@ module.exports = {
             .setRequired(true))),
 
   async execute(interaction) {
-    console.log('linkprofile command triggered'); // Add logging
+    console.log('linkprofile command triggered');
     const discordId = interaction.user.id;
     const subcommand = interaction.options.getSubcommand();
     const username = interaction.options.getString('username');
+    const updateField = subcommand === 'mal' ? 'mal_username' : 'anilist_username';
+
+    // Prepare embed templates using EmbedBuilder
+    const successEmbed = (msg) => new EmbedBuilder()
+      .setColor('#00FF00')
+      .setTitle('Account Linked')
+      .setDescription(msg);
+    const errorEmbed = (msg) => new EmbedBuilder()
+      .setColor('#FF0000')
+      .setTitle('Linking Failed')
+      .setDescription(msg);
 
     try {
-      db.get(`SELECT * FROM users WHERE discord_id = ?`, [discordId], (err, row) => {
-        if (err) {
-          console.error('DB Select Error:', err);
-          return interaction.reply('There was an error linking your account.');
+      // Check if the username is already linked to another user
+      const checkQuery = `SELECT discord_id FROM users WHERE ${updateField} = ?`;
+      db.get(checkQuery, [username], (checkErr, row) => {
+        if (checkErr) {
+          console.error('DB Check Error:', checkErr);
+          return interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
         }
 
-        if (row) {
-          // Update existing user
-          const updateField = subcommand === 'mal' ? 'mal_username' : 'anilist_username';
-          db.run(`UPDATE users SET ${updateField} = ? WHERE discord_id = ?`, [username, discordId], (updateErr) => {
-            if (updateErr) {
-              console.error('DB Update Error:', updateErr);
-              return interaction.reply('There was an error linking your account.');
-            }
-            interaction.reply(`${subcommand === 'mal' ? 'MyAnimeList' : 'AniList'} account linked: ${username}`);
-          });
-        } else {
-          // Insert new user
-          const malUsername = subcommand === 'mal' ? username : null;
-          const anilistUsername = subcommand === 'anilist' ? username : null;
-          db.run(`INSERT INTO users (discord_id, mal_username, anilist_username) VALUES (?, ?, ?)`, [discordId, malUsername, anilistUsername], (insertErr) => {
-            if (insertErr) {
-              console.error('DB Insert Error:', insertErr);
-              return interaction.reply('There was an error linking your account.');
-            }
-            interaction.reply(`${subcommand === 'mal' ? 'MyAnimeList' : 'AniList'} account linked: ${username}`);
+        if (row && row.discord_id !== discordId) {
+          // Username already taken by another user, mention that user.
+          return interaction.reply({
+            embeds: [errorEmbed(`That username is already linked to <@${row.discord_id}>.`)],
+            ephemeral: true
           });
         }
+
+        // Proceed with linking: check if the current user already exists in DB
+        db.get(`SELECT * FROM users WHERE discord_id = ?`, [discordId], (selectErr, userRow) => {
+          if (selectErr) {
+            console.error('DB Select Error:', selectErr);
+            return interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
+          }
+
+          // Callback for sending success embed reply
+          const replySuccess = () => {
+            interaction.reply({ embeds: [successEmbed(`${subcommand === 'mal' ? 'MyAnimeList' : 'AniList'} account linked: ${username}`)] });
+          };
+
+          if (userRow) {
+            // Update existing user
+            const updateQuery = `UPDATE users SET ${updateField} = ? WHERE discord_id = ?`;
+            db.run(updateQuery, [username, discordId], (updateErr) => {
+              if (updateErr) {
+                console.error('DB Update Error:', updateErr);
+                return interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
+              }
+              replySuccess();
+            });
+          } else {
+            // Insert new user record
+            const malUsername = subcommand === 'mal' ? username : null;
+            const anilistUsername = subcommand === 'anilist' ? username : null;
+            db.run(`INSERT INTO users (discord_id, mal_username, anilist_username) VALUES (?, ?, ?)`,
+              [discordId, malUsername, anilistUsername],
+              (insertErr) => {
+                if (insertErr) {
+                  console.error('DB Insert Error:', insertErr);
+                  return interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
+                }
+                replySuccess();
+              });
+          }
+        });
       });
     } catch (error) {
       console.error(error);
-      await interaction.reply('There was an error linking your account.');
+      await interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
     }
   },
 };

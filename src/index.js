@@ -66,6 +66,16 @@ async function checkForNewEpisodes() {
 
 // When the bot starts
 client.once('ready', () => {
+
+  // Set custom presence
+  client.user.setPresence({
+    status: 'online',
+    activities: [{
+      name: 'Sea of Knowledge',
+      type: 'PLAYING' // Options: PLAYING, WATCHING, LISTENING, COMPETING
+    }],
+  });
+
   console.log(`Logged in as ${client.user.tag}!`);
   setInterval(checkForNewEpisodes, 3600000); // Check every hour
 });
