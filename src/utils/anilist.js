@@ -1,8 +1,8 @@
-const axios = require('axios');
+import axios from 'axios';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
 
-async function fetchAnimeDetails(animeTitle) {
+export async function fetchAnimeDetails(animeTitle) {
   const query = `
     query ($search: String) {
       Media(search: $search, type: ANIME) {
@@ -22,22 +22,13 @@ async function fetchAnimeDetails(animeTitle) {
     }
   `;
 
-  const variables = {
-    search: animeTitle,
-  };
+  const variables = { search: animeTitle };
 
   try {
-    const response = await axios.post(ANILIST_API_URL, {
-      query,
-      variables,
-    });
+    const response = await axios.post(ANILIST_API_URL, { query, variables });
     return response.data.data.Media;
   } catch (error) {
     console.error('Error fetching anime details:', error);
     throw error;
   }
 }
-
-module.exports = {
-  fetchAnimeDetails,
-};

@@ -1,6 +1,6 @@
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-require('dotenv').config(); // Load environment variables from .env file
+import 'dotenv/config';
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord-api-types/v9';
 
 const clientId = process.env.DISCORD_CLIENT_ID;
 const guildId = process.env.GUILD_ID;
@@ -12,17 +12,15 @@ console.log('Token:', token ? 'Loaded' : 'Not Loaded');
 
 const rest = new REST({ version: '9' }).setToken(token);
 
-(async () => {
-    try {
-        console.log('Started clearing application (/) commands.');
+try {
+  console.log('Started clearing application (/) commands.');
 
-        await rest.put(
-            Routes.applicationGuildCommands(clientId, guildId),
-            { body: [] },
-        );
+  await rest.put(
+    Routes.applicationGuildCommands(clientId, guildId),
+    { body: [] },
+  );
 
-        console.log('Successfully cleared application (/) commands.');
-    } catch (error) {
-        console.error(error);
-    }
-})();
+  console.log('Successfully cleared application (/) commands.');
+} catch (error) {
+  console.error(error);
+}

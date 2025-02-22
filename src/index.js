@@ -1,9 +1,9 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const fs = require('fs');
-const db = require('./database/db.js');
-const { fetchAnimeDetails } = require('./utils/anilist.js');
-const { setInterval } = require('timers/promises');
+import 'dotenv/config';
+import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import fs from 'fs';
+import db from './database/db.mjs';
+import { fetchAnimeDetails } from './utils/anilist.mjs';
+import { setInterval } from 'timers/promises';
 
 // Create a new client instance
 const client = new Client({
@@ -20,7 +20,7 @@ client.commands = new Collection();
 const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = require(`./commands/${file}`);
+  const command = await import(`./commands/${file}`);
   client.commands.set(command.data.name, command);
 }
 
