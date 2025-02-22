@@ -1,4 +1,4 @@
-# LeviathanOrcale 
+# LeviathanOracle 
 
 A Discord bot built to manage anime watchlists, link user profiles from MyAnimeList and AniList, search for anime/manga details, and fetch English-translated anime from Nyaa.
 The idea for this bot was given by my friend [baku](https://github.com/maiorikizu) and brought to life by me [Pilot_kun](https://github.com/PilotKun). 
