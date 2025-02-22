@@ -1,11 +1,10 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import fs from 'fs';
-import db from './database/db.mjs';
-import { fetchAnimeDetails } from './utils/anilist.mjs';
+import db from './database/db.js';
+import { fetchAnimeDetails } from './utils/anilist.js';
 import { setInterval } from 'timers/promises';
 
-// Create a new client instance
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -15,12 +14,12 @@ const client = new Client({
   ],
 });
 
-// Load commands into a collection
 client.commands = new Collection();
 const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = await import(`./commands/${file}`);
+  const commandModule = await import(`./commands/${file}`);
+  const command = commandModule.default; // Access the default export
   client.commands.set(command.data.name, command);
 }
 
@@ -64,23 +63,19 @@ async function checkForNewEpisodes() {
   });
 }
 
-// When the bot starts
 client.once('ready', () => {
-
-  // Set custom presence
   client.user.setPresence({
     status: 'online',
     activities: [{
       name: 'Sea of Knowledge',
-      type: 'PLAYING' // Options: PLAYING, WATCHING, LISTENING, COMPETING
+      type: 'PLAYING'
     }],
   });
 
   console.log(`Logged in as ${client.user.tag}!`);
-  setInterval(checkForNewEpisodes, 3600000); // Check every hour
+  setInterval(checkForNewEpisodes, 3600000);
 });
 
-// Listen for interactions
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isCommand()) return;
 
@@ -96,5 +91,4 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-// Login with the bot token
 client.login(process.env.DISCORD_TOKEN);
