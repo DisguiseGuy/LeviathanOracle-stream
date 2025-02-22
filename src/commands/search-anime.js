@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const axios = require('axios');
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import axios from 'axios';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('search-anime')
     .setDescription('Fetch anime details from Jikan API')
@@ -20,7 +20,7 @@ module.exports = {
     try {
       // GET request to Jikan API for anime search (limit to 10 results)
       const response = await axios.get('https://api.jikan.moe/v4/anime', {
-        params: { q: query, limit: 10 }
+        params: { q: query, limit: 10 },
       });
 
       const animeList = response.data.data;
@@ -30,10 +30,11 @@ module.exports = {
       }
 
       // Create buttons for each anime result using Jikan's mal_id as identifier
-      const buttons = animeList.map(anime => new ButtonBuilder()
-        .setCustomId(`anime_${anime.mal_id}`)
-        .setLabel(anime.title)
-        .setStyle(ButtonStyle.Primary)
+      const buttons = animeList.map(anime =>
+        new ButtonBuilder()
+          .setCustomId(`anime_${anime.mal_id}`)
+          .setLabel(anime.title)
+          .setStyle(ButtonStyle.Primary)
       );
 
       const rows = [];
@@ -51,13 +52,13 @@ module.exports = {
         const selectedAnime = animeList.find(anime => String(anime.mal_id) === animeId);
 
         if (!selectedAnime) {
-          await i.reply({ content: "Anime not found.", ephemeral: true });
+          await i.reply({ content: 'Anime not found.', ephemeral: true });
           return;
         }
 
         // Clean up the synopsis by removing HTML tags and limiting its length
         let cleanSynopsis = selectedAnime.synopsis
-          ? selectedAnime.synopsis.replace(/<\/?[^>]+(>|$)/g, "")
+          ? selectedAnime.synopsis.replace(/<\/?[^>]+(>|$)/g, '')
           : 'No description available.';
         if (cleanSynopsis.length > 500) {
           cleanSynopsis = cleanSynopsis.substring(0, 500) + '...';
@@ -78,7 +79,6 @@ module.exports = {
           interaction.editReply({ content: 'No selection made.', components: [] });
         }
       });
-
     } catch (error) {
       console.error('Error fetching anime from Jikan:', error.response ? error.response.data : error);
       await interaction.editReply({ content: 'Failed to fetch anime details.', components: [] });

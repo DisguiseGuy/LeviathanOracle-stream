@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const axios = require('axios');
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import axios from 'axios';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('search-manga')
     .setDescription('Fetch manga details from Jikan API')
@@ -20,7 +20,7 @@ module.exports = {
     try {
       // GET request to Jikan API for manga search (limit to 10 results)
       const response = await axios.get('https://api.jikan.moe/v4/manga', {
-        params: { q: query, limit: 10 }
+        params: { q: query, limit: 10 },
       });
 
       const mangaList = response.data.data;
@@ -30,10 +30,11 @@ module.exports = {
       }
 
       // Create buttons for each manga result using Jikan's mal_id as identifier
-      const buttons = mangaList.map(manga => new ButtonBuilder()
-        .setCustomId(`manga_${manga.mal_id}`)
-        .setLabel(manga.title)
-        .setStyle(ButtonStyle.Primary)
+      const buttons = mangaList.map(manga =>
+        new ButtonBuilder()
+          .setCustomId(`manga_${manga.mal_id}`)
+          .setLabel(manga.title)
+          .setStyle(ButtonStyle.Primary)
       );
 
       const rows = [];
@@ -50,13 +51,13 @@ module.exports = {
         const mangaId = i.customId.split('_')[1];
         const selectedManga = mangaList.find(manga => String(manga.mal_id) === mangaId);
         if (!selectedManga) {
-          await i.reply({ content: "Manga not found.", ephemeral: true });
+          await i.reply({ content: 'Manga not found.', ephemeral: true });
           return;
         }
 
         // Clean up the synopsis by removing HTML tags and limiting its length
         let cleanSynopsis = selectedManga.synopsis
-          ? selectedManga.synopsis.replace(/<\/?[^>]+(>|$)/g, "")
+          ? selectedManga.synopsis.replace(/<\/?[^>]+(>|$)/g, '')
           : 'No description available.';
         if (cleanSynopsis.length > 500) {
           cleanSynopsis = cleanSynopsis.substring(0, 500) + '...';

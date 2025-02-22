@@ -1,9 +1,9 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const axios = require('axios');
-const { fetchAniListUser } = require('../utils/querry.js');
-const db = require('../database/db.js');
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import axios from 'axios';
+import { fetchAniListUser } from '../utils/querry.js';
+import db from '../database/db.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('linkedprofile')
     .setDescription('View your linked profile(s)'),

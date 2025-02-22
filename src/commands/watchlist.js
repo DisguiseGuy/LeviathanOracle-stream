@@ -1,8 +1,8 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const db = require('../database/db.js');
-const { fetchAnimeDetails } = require('../utils/anilist.js');
+import { SlashCommandBuilder } from '@discordjs/builders';
+import db from '../database/db.js';
+import { fetchAnimeDetails } from '../utils/anilist.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('watchlist')
     .setDescription('Manage your anime watchlist')
@@ -105,7 +105,6 @@ module.exports = {
           }
         }
       );
-
     } else if (subcommand === 'remove') {
       const title = interaction.options.getString('title');
       db.run(
@@ -146,7 +145,6 @@ module.exports = {
           }
         }
       );
-
     } else if (subcommand === 'show') {
       db.all(
         `SELECT anime_title FROM watchlists WHERE user_id = ?`,

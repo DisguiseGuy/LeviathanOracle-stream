@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const db = require('../database/db.js');
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import db from '../database/db.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('linkprofile')
     .setDescription('Link your MAL or AniList account')
@@ -29,7 +29,7 @@ module.exports = {
     const username = interaction.options.getString('username');
     const updateField = subcommand === 'mal' ? 'mal_username' : 'anilist_username';
 
-    // Prepare embed templates using EmbedBuilder
+    // Prepare embed templates
     const successEmbed = (msg) => new EmbedBuilder()
       .setColor('#00FF00')
       .setTitle('Account Linked')
@@ -49,21 +49,19 @@ module.exports = {
         }
 
         if (row && row.discord_id !== discordId) {
-          // Username already taken by another user, mention that user.
           return interaction.reply({
             embeds: [errorEmbed(`That username is already linked to <@${row.discord_id}>.`)],
             ephemeral: true
           });
         }
 
-        // Proceed with linking: check if the current user already exists in DB
+        // Check if the current user already exists in the DB
         db.get(`SELECT * FROM users WHERE discord_id = ?`, [discordId], (selectErr, userRow) => {
           if (selectErr) {
             console.error('DB Select Error:', selectErr);
             return interaction.reply({ embeds: [errorEmbed('There was an error linking your account.')], ephemeral: true });
           }
 
-          // Callback for sending success embed reply
           const replySuccess = () => {
             interaction.reply({ embeds: [successEmbed(`${subcommand === 'mal' ? 'MyAnimeList' : 'AniList'} account linked: ${username}`)] });
           };

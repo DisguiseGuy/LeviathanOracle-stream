@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } = require('discord.js');
-const axios = require('axios');
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
+import axios from 'axios';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('search-profile-mal')
     .setDescription('Fetch MyAnimeList user profile')
@@ -79,7 +79,7 @@ module.exports = {
             await i.update({ content: '**Select your favorite anime:**', components: [selectRow] });
 
             const selectFilter = si => si.customId === 'select_fav_anime';
-            const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
+            const selectCollector = interaction.channel.createMessageComponentCollector({ filter: selectFilter, time: 60000 });
 
             selectCollector.on('collect', async selectInteraction => {
               if (!selectInteraction.values || !selectInteraction.values[0]) {
@@ -99,19 +99,6 @@ module.exports = {
               const animeDetailsResponse = await axios.get(`https://api.jikan.moe/v4/anime/${selectedAnimeId}/full`);
               const animeDetails = animeDetailsResponse.data.data;
 
-              // Fetch user's anime list to get the user's score
-              /*
-              let userScore = 'N/A';
-              try {
-                const userAnimeListResponse = await axios.get(`https://api.jikan.moe/v4/users/${username}/animelist`);
-                const userAnimeList = userAnimeListResponse.data.data;
-                const userAnime = userAnimeList.find(anime => anime.anime.mal_id.toString() === selectedAnimeId);
-                userScore = userAnime ? userAnime.score : 'N/A';
-              } catch (error) {
-                console.error('Failed to fetch user anime list:', error);
-              }
-              */
-
               const animeEmbed = new EmbedBuilder()
                 .setColor(0x2e51a2)
                 .setTitle(animeDetails.title)
@@ -119,7 +106,6 @@ module.exports = {
                 .setImage(animeDetails.images.jpg.image_url)
                 .addFields(
                   { name: 'Score', value: animeDetails.score?.toString() || 'N/A', inline: true },
-                  // { name: 'Your Score', value: userScore.toString(), inline: true },
                 );
 
               await selectInteraction.reply({ embeds: [animeEmbed], ephemeral: true });
@@ -157,7 +143,7 @@ module.exports = {
             await i.update({ content: '**Select your favorite manga:**', components: [selectRow] });
 
             const selectFilter = si => si.customId === 'select_fav_manga';
-            const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
+            const selectCollector = interaction.channel.createMessageComponentCollector({ filter: selectFilter, time: 60000 });
 
             selectCollector.on('collect', async selectInteraction => {
               if (!selectInteraction.values || !selectInteraction.values[0]) {
@@ -194,7 +180,6 @@ module.exports = {
           }
         }
       });
-
     } catch (error) {
       if (error.response && error.response.status === 404) {
         await interaction.editReply({ content: 'User profile not found.', components: [] });

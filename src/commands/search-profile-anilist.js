@@ -1,7 +1,7 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } = require('discord.js');
-const { fetchAniListUser } = require('../utils/querry');
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { fetchAniListUser } from '../utils/querry.js';
 
-module.exports = {
+export default {
   data: new SlashCommandBuilder()
     .setName('search-profile-anilist')
     .setDescription('Fetch AniList user profile')
@@ -69,14 +69,14 @@ module.exports = {
           await i.update({ content: '**Select your favorite anime:**', components: [selectRow] });
 
           const selectFilter = si => si.customId === 'select_fav_anime';
-          const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
+          const selectCollector = interaction.channel.createMessageComponentCollector({ filter: selectFilter, time: 60000 });
 
           selectCollector.on('collect', async selectInteraction => {
             const selectedAnimeId = selectInteraction.values[0];
             const selectedAnime = favAnime.find(anime => anime.id.toString() === selectedAnimeId);
 
             if (!selectedAnime) {
-              await selectInteraction.reply({ content: 'Could not find the selected anime.', flags: 64 });
+              await selectInteraction.reply({ content: 'Could not find the selected anime.', ephemeral: true });
               return;
             }
 
@@ -90,7 +90,7 @@ module.exports = {
                 { name: 'Average Score', value: selectedAnime.averageScore?.toString() || 'N/A', inline: true },
               );
 
-            await selectInteraction.reply({ embeds: [animeEmbed], flags: 64 });
+            await selectInteraction.reply({ embeds: [animeEmbed], ephemeral: true });
           });
         } else if (i.customId === 'fav_manga') {
           const favManga = userData.favourites?.manga?.nodes || [];
@@ -114,14 +114,14 @@ module.exports = {
           await i.update({ content: '**Select your favorite manga:**', components: [selectRow] });
 
           const selectFilter = si => si.customId === 'select_fav_manga';
-          const selectCollector = interaction.channel.createMessageComponentCollector({ selectFilter, time: 60000 });
+          const selectCollector = interaction.channel.createMessageComponentCollector({ filter: selectFilter, time: 60000 });
 
           selectCollector.on('collect', async selectInteraction => {
             const selectedMangaId = selectInteraction.values[0];
             const selectedManga = favManga.find(manga => manga.id.toString() === selectedMangaId);
 
             if (!selectedManga) {
-              await selectInteraction.reply({ content: 'Could not find the selected manga.', flags: 64 });
+              await selectInteraction.reply({ content: 'Could not find the selected manga.', ephemeral: true });
               return;
             }
 
@@ -135,7 +135,7 @@ module.exports = {
                 { name: 'Average Score', value: selectedManga.averageScore?.toString() || 'N/A', inline: true },
               );
 
-            await selectInteraction.reply({ embeds: [mangaEmbed], flags: 64 });
+            await selectInteraction.reply({ embeds: [mangaEmbed], ephemeral: true });
           });
         }
       });
