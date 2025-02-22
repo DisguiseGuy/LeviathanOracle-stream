@@ -1,5 +1,9 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create or open the database
 const dbPath = path.resolve(__dirname, 'watchlist.db');
@@ -11,7 +15,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-// Create the watchlists table if it doesn't exist
+// Create the watchlists and users tables if they don't exist
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS watchlists (
@@ -21,13 +25,12 @@ db.serialize(() => {
     )
   `, (err) => {
     if (err) {
-      console.error('Error creating table:', err);
+      console.error('Error creating watchlists table:', err);
     } else {
       console.log('Watchlists table created successfully');
     }
   });
 
-  // Create the users table if it doesn't exist
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       discord_id TEXT PRIMARY KEY,
@@ -36,11 +39,11 @@ db.serialize(() => {
     )
   `, (err) => {
     if (err) {
-      console.error('Error creating table:', err);
+      console.error('Error creating users table:', err);
     } else {
       console.log('Users table created successfully');
     }
   });
 });
 
-module.exports = db;
+export default db;
