@@ -6,8 +6,13 @@ const commands = [];
 const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = await import(`./commands/${file}`);
-  commands.push(command.data.toJSON());
+  const commandModule = await import(`./commands/${file}`);
+  const command = commandModule.default; // Get the default export
+  if (command?.data) {  // Check if command and data exist
+    commands.push(command.data.toJSON());
+  } else {
+    console.warn(`Command file ${file} is missing required data property`);
+  }
 }
 
 // Register commands globally
