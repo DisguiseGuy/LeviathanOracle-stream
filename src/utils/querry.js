@@ -66,3 +66,31 @@ export async function fetchAniListUser(username) {
     throw new Error('Failed to fetch AniList user data.');
   }
 }
+// Added fetchMangaDetails function
+export async function fetchMangaDetails(mangaTitle) {
+  const query = `
+    query ($search: String) {
+      Media(search: $search, type: MANGA) {
+        id
+        title {
+          romaji
+          english
+        }
+        coverImage {
+          large
+        }
+        chapters
+      }
+    }
+  `;
+
+  const variables = { search: mangaTitle };
+
+  try {
+    const response = await axios.post(anilistAPI, { query, variables });
+    return response.data.data.Media;
+  } catch (error) {
+    console.error('AniList API Error:', error);
+    throw new Error('Failed to fetch manga details.');
+  }
+}

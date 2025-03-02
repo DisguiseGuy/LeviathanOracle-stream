@@ -3,6 +3,7 @@ import { Client, GatewayIntentBits, Collection } from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
+import { fetchMangaDetails } from './utils/querry.js';
 import { setInterval } from 'timers/promises';
 
 const client = new Client({
@@ -15,7 +16,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
@@ -24,9 +25,9 @@ for (const file of commandFiles) {
 }
 
 // Function to check for new episodes
-async function checkForNewEpisodes() {
-  console.log('Checking for new episodes...');
-  db.all(`SELECT DISTINCT user_id, anime_title FROM watchlists`, async (err, rows) => {
+async function checkForNewReleases() {
+  console.log('Checking for new releases...');
+  db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
     if (err) {
       console.error('DB Select Error:', err);
       return;
@@ -36,28 +37,54 @@ async function checkForNewEpisodes() {
 
     for (const row of rows) {
       try {
-        console.log(`Fetching details for anime: ${row.anime_title}`);
-        const animeDetails = await fetchAnimeDetails(row.anime_title);
-        if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
-          console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
-          const user = await client.users.fetch(row.user_id);
-          user.send({
-            embeds: [
-              {
-                color: 0x0099ff,
-                title: `New Episode of ${animeDetails.title.romaji}`,
-                description: `Episode ${animeDetails.nextAiringEpisode.episode} is airing soon!`,
-                image: {
-                  url: animeDetails.coverImage.large,
+        if (row.anime_title) {
+          console.log(`Fetching details for anime: ${row.anime_title}`);
+          const animeDetails = await fetchAnimeDetails(row.anime_title);
+          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
+            console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
+            const user = await client.users.fetch(row.user_id);
+            user.send({
+              embeds: [
+                {
+                  color: 0x0099ff,
+                  title: `New Episode of ${animeDetails.title.romaji}`,
+                  description: `Episode ${animeDetails.nextAiringEpisode.episode} is airing soon!`,
+                  image: {
+                    url: animeDetails.coverImage.large,
+                  },
                 },
-              },
-            ],
-          });
-        } else {
-          console.log(`No new episodes for ${row.anime_title} within the next hour.`);
+              ],
+            });
+          } else {
+            console.log(`No new episodes for ${row.anime_title} within the next hour.`);
+          }
+        }
+// Function to check for new chapters
+        if (row.manga_title) {
+          console.log(`Fetching details for manga: ${row.manga_title}`);
+          const mangaDetails = await fetchMangaDetails(row.manga_title);
+          if (mangaDetails.chapters && mangaDetails.chapters.length > 0) {
+            const latestChapter = mangaDetails.chapters[0];
+            console.log(`New chapter of ${mangaDetails.title.romaji} is out: Chapter ${latestChapter.chapter}`);
+            const user = await client.users.fetch(row.user_id);
+            user.send({
+              embeds: [
+                {
+                  color: 0x0099ff,
+                  title: `New Chapter of ${mangaDetails.title.romaji}`,
+                  description: `Chapter ${latestChapter.chapter} is out now!`,
+                  image: {
+                    url: mangaDetails.coverImage.large,
+                  },
+                },
+              ],
+            });
+          } else {
+            console.log(`No new chapters for ${row.manga_title} available.`);
+          }
         }
       } catch (error) {
-        console.error('Error fetching anime details:', error);
+        console.error('Error fetching details:', error);
       }
     }
   });
@@ -73,7 +100,7 @@ client.once('ready', () => {
   });
 
   console.log(`Logged in as ${client.user.tag}!`);
-  setInterval(checkForNewEpisodes, 3600000);
+  setInterval(checkForNewReleases, 3600000);
 });
 
 client.on('interactionCreate', async (interaction) => {
