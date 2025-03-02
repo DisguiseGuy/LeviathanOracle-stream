@@ -24,7 +24,7 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
-// Function to check for new episodes
+// Function to check for new episodes and chapters
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
   db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
@@ -59,7 +59,7 @@ async function checkForNewReleases() {
             console.log(`No new episodes for ${row.anime_title} within the next hour.`);
           }
         }
-// Function to check for new chapters
+
         if (row.manga_title) {
           console.log(`Fetching details for manga: ${row.manga_title}`);
           const mangaDetails = await fetchMangaDetails(row.manga_title);

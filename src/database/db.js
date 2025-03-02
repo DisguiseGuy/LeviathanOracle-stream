@@ -45,31 +45,5 @@ db.serialize(() => {
     }
   });
 });
-// For retriving user data from the database
-export function getUserByDiscordId(discordId) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM users WHERE discord_id = ?', [discordId], (err, row) => {
-      if (err) {
-        console.error('Error fetching user:', err);
-        reject(err);
-      } else {
-        resolve(row);
-      }
-    });
-  });
-}
-
-export function getUserWatchlist(userId) {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM watchlists WHERE user_id = ?', [userId], (err, rows) => {
-      if (err) {
-        console.error('Error fetching watchlist:', err);
-        reject(err);
-      } else {
-        resolve(rows);
-      }
-    });
-  });
-}
 
 export default db;
