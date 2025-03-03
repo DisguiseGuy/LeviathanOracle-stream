@@ -30,12 +30,16 @@ export default {
       }
 
       // Create buttons for each anime result using Jikan's mal_id as identifier
-      const buttons = animeList.map(anime =>
-        new ButtonBuilder()
+      const buttons = animeList.map(anime => {
+        let title = anime.title;
+        if (title.length > 80) {
+          title = title.substring(0, 77) + '...';
+        }
+        return new ButtonBuilder()
           .setCustomId(`anime_${anime.mal_id}`)
-          .setLabel(anime.title)
-          .setStyle(ButtonStyle.Primary)
-      );
+          .setLabel(title)
+          .setStyle(ButtonStyle.Primary);
+      });
 
       const rows = [];
       for (let i = 0; i < buttons.length; i += 5) {
@@ -64,10 +68,19 @@ export default {
           cleanSynopsis = cleanSynopsis.substring(0, 500) + '...';
         }
 
+        // Determine the status and next episode release date/time. Do tell me if you want it changed or removed.
+        let status = selectedAnime.status || 'Unknown';
+        let nextEpisode = '';
+        if (status.toLowerCase() === 'currently airing' && selectedAnime.aired && selectedAnime.aired.to) {
+          nextEpisode = `\n**Next Episode:** ${new Date(selectedAnime.aired.to).toLocaleString()}`;
+        } else if (status.toLowerCase() === 'finished airing') {
+          status = 'Completed';
+        }
+
         const embed = new EmbedBuilder()
           .setTitle(selectedAnime.title)
           .setURL(selectedAnime.url)
-          .setDescription(`**Score:** ${selectedAnime.score || 'N/A'}\n**Episodes:** ${selectedAnime.episodes || 'N/A'}\n**Synopsis:** ${cleanSynopsis}`)
+          .setDescription(`**Score:** ${selectedAnime.score || 'N/A'}\n**Episodes:** ${selectedAnime.episodes || 'N/A'}\n**Status:** ${status}${nextEpisode}\n**Synopsis:** ${cleanSynopsis}`)
           .setImage(selectedAnime.images.jpg.image_url)
           .setColor(0x00AE86);
 
