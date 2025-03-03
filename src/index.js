@@ -1,10 +1,13 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import pkg from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
 import { fetchMangaDetails } from './utils/querry.js';
 import { setInterval } from 'timers/promises';
+import { handleButtonInteraction } from './utils/anime-schedule.js';
+
+const { Client, GatewayIntentBits, Collection } = pkg;
 
 const client = new Client({
   intents: [
@@ -16,15 +19,14 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
-  const command = commandModule.default; // Access the default export
+  const command = commandModule.default;
   client.commands.set(command.data.name, command);
 }
 
-// Function to check for new episodes and chapters
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
   db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
@@ -40,7 +42,7 @@ async function checkForNewReleases() {
         if (row.anime_title) {
           console.log(`Fetching details for anime: ${row.anime_title}`);
           const animeDetails = await fetchAnimeDetails(row.anime_title);
-          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
+          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) {
             console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
             const user = await client.users.fetch(row.user_id);
             user.send({
@@ -104,17 +106,19 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isCommand()) return;
+  if (interaction.isCommand()) {
+    const command = client.commands.get(interaction.commandName.toLowerCase());
 
-  const command = client.commands.get(interaction.commandName.toLowerCase());
+    if (!command) return;
 
-  if (!command) return;
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+    try {
+      await command.execute(interaction);
+    } catch (error) {
+      console.error(error);
+      await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+    }
+  } else {
+    await handleButtonInteraction(interaction);
   }
 });
 
