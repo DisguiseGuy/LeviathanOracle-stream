@@ -1,7 +1,7 @@
 # LeviathanOracle 
 
 A Discord bot built to manage anime watchlists, link user profiles from MyAnimeList and AniList, search for anime/manga details, and fetch English-translated anime from Nyaa.
-The idea for this bot was given by my friend [baku](https://github.com/maiorikizu) and brought to life by me [Pilot_kun](https://github.com/PilotKun). 
+The idea for this bot was given by my friend [baku](https://github.com/maiorikizu) and brought to life by [Pilot_kun](https://github.com/PilotKun). 
 
 ## Features
 
@@ -13,12 +13,13 @@ The idea for this bot was given by my friend [baku](https://github.com/maiorikiz
 - **Anime/Manga Search**  
   - Search for anime details with [`/search-anime`](src/commands/search-anime.js).  
   - Search for manga details with [`/search-manga`](src/commands/search-manga.js).
+  - [`/upcoming`](src/commands/upcoming.js) to search for upcomi6ankme episodes.
 
 - **Watchlist Management**  
   - Add anime to your watchlist using [`/watchlist add`](src/commands/watchlist.js).  
   - Remove anime from your watchlist using [`/watchlist remove`](src/commands/watchlist.js).  
   - Display your current watchlist with [`/watchlist show`](src/commands/watchlist.js).  
-  - Automatic checking for upcoming episodes based on users' watchlists and notifying them in DM's (haven't started this yet).
+  - Automatic checking for upcoming episodes based on users' watchlists and notifying them in DM's.
 
 - **Nyaa Anime Fetching**  
   - Search for English-translated anime torrents from Nyaa using [`/nyaa`](src/commands/nyaa.js).  
