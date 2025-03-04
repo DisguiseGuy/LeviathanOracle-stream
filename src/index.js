@@ -25,7 +25,7 @@ for (const file of commandFiles) {
   const command = commandModule.default; // Access the default export
   client.commands.set(command.data.name, command);
 }
-
+// Function to check for new anime episodes and manga chapters
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
   db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
