@@ -33,7 +33,7 @@ export default {
     collector.on('collect', async i => {
       await i.deferUpdate();
       const selectedDay = i.customId;
-      const airTypeButtons = ['all', 'sub', 'dub', 'raw'].map(type => 
+      const airTypeButtons = ['sub', 'dub', 'raw'].map(type => // Removed 'all' from the list because no such endpoint exists.
         new ButtonBuilder()
           .setCustomId(type)
           .setLabel(type)
@@ -44,7 +44,7 @@ export default {
 
       await i.editReply({ content: `Selected day: ${selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}. Now select the air type:`, components: [airTypeRow] });
 
-      const airTypeFilter = i => ['all', 'sub', 'dub', 'raw'].includes(i.customId);
+      const airTypeFilter = i => ['sub', 'dub', 'raw'].includes(i.customId); // Removed 'all' from the list because no such endpoint exists.
       const airTypeCollector = interaction.channel.createMessageComponentCollector({ filter: airTypeFilter, time: 15000 });
 
       airTypeCollector.on('collect', async i => {

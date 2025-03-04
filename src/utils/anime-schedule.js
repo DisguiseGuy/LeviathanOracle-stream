@@ -42,7 +42,7 @@ export const createAnimeEmbed = (animeList, page = 1) => {
   const pageData = animeList.slice(start, end);
 
   pageData.forEach(anime => {
-    embed.addFields({ name: `${anime.episodeDate} ${anime.title}`, value: `Episode ${anime.episodeNumber}` });
+    embed.addFields({ name: `${anime.episodeDate} ${anime.english || anime.title}`, value: `Episode ${anime.episodeNumber || 'TBA' }` });
   });
 
   return embed;
