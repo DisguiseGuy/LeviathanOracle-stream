@@ -13,7 +13,7 @@ The idea for this bot was given by my friend [baku](https://github.com/maiorikiz
 - **Anime/Manga Search**  
   - Search for anime details with [`/search-anime`](src/commands/search-anime.js).  
   - Search for manga details with [`/search-manga`](src/commands/search-manga.js).
-  - Search for upcoming anime episodes with [`/upcoming`](src/commands/upcoming.js)
+  - Search for upcoming anime episodes with [`/upcoming`](src/commands/upcoming.js).
 
 - **Watchlist Management**  
   - Add anime to your watchlist using [`/watchlist add`](src/commands/watchlist.js).  
