@@ -1,10 +1,12 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Collection } from 'discord.js';
+import pkg from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
 import { fetchMangaDetails } from './utils/querry.js';
 import { setInterval } from 'timers/promises';
+
+const { Client, GatewayIntentBits, Collection } = pkg;
 
 const client = new Client({
   intents: [
@@ -23,8 +25,7 @@ for (const file of commandFiles) {
   const command = commandModule.default; // Access the default export
   client.commands.set(command.data.name, command);
 }
-
-// Function to check for new episodes and chapters
+// Function to check for new anime episodes and manga chapters
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
   db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
@@ -104,17 +105,17 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isCommand()) return;
+  if (interaction.isCommand()) {
+    const command = client.commands.get(interaction.commandName.toLowerCase());
 
-  const command = client.commands.get(interaction.commandName.toLowerCase());
+    if (!command) return;
 
-  if (!command) return;
-
-  try {
-    await command.execute(interaction);
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+    try {
+      await command.execute(interaction);
+    } catch (error) {
+      console.error(error);
+      await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+    }
   }
 });
 
