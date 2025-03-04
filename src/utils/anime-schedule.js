@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios from 'axios';  // Noice!
 import pkg from 'discord.js';
 import 'dotenv/config';
 

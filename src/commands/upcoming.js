@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from '@discordjs/builders';
+import { SlashCommandBuilder } from '@discordjs/builders'; // The command.
 import { fetchDailySchedule, createAnimeEmbed, createPaginationButtons } from '../utils/anime-schedule.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
