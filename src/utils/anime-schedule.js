@@ -1,96 +1,67 @@
-import fetch from 'node-fetch';
+import axios from 'axios';
 import pkg from 'discord.js';
 import 'dotenv/config';
 
-const { MessageActionRow, MessageButton, EmbedBuilder } = pkg;
+const { EmbedBuilder } = pkg;
+const BASE_URL = 'https://animeschedule.net/api/v3';
+const API_KEY = process.env.ANIMESCHEDULE_TOKEN;
 
-const fetchAnimeData = async (day) => {
+export const fetchDailySchedule = async (day, airType = 'all') => {
   try {
-    const token = process.env.ANIMESCHEDULE_TOKEN;
-    const response = await fetch(`https://api.animeschedule.net/v3/titles/${day}`, {
+    const response = await axios.get(`${BASE_URL}/timetables/${airType}`, {
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${API_KEY}`
       }
     });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+
+    if (response.data && response.data.length > 0) {
+      const dayOfWeek = day.toLowerCase();
+      const filteredData = response.data.filter(anime => {
+        const date = new Date(anime.episodeDate);
+        const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        return weekday === dayOfWeek;
+      });
+      return filteredData;
+    } else {
+      return [];
     }
-    const data = await response.json();
-    return data;
   } catch (error) {
-    console.error('Error fetching anime data:', error);
+    console.error('Error fetching daily schedule:', error.response ? error.response.data : error.message);
     return [];
   }
 };
 
-const createAnimeEmbed = (animeList, page = 1) => {
+export const createAnimeEmbed = (animeList, page = 1) => {
   const embed = new EmbedBuilder()
     .setTitle('Upcoming Anime Episodes')
     .setColor('#0099ff')
-    .setFooter(`Page ${page}`);
+    .setFooter({ text: `Page ${page}` });
 
   const start = (page - 1) * 10;
   const end = start + 10;
   const pageData = animeList.slice(start, end);
 
   pageData.forEach(anime => {
-    embed.addField(`${anime.time} ${anime.name}`, `Episode ${anime.episode}`);
+    embed.addFields({ name: `${anime.episodeDate} ${anime.title}`, value: `Episode ${anime.episodeNumber}` });
   });
 
   return embed;
 };
 
-const createPaginationButtons = (currentPage, totalPages) => {
-  const row = new MessageActionRow()
+export const createPaginationButtons = (currentPage, totalPages) => {
+  const row = new pkg.ActionRowBuilder()
     .addComponents(
-      new MessageButton()
+      new pkg.ButtonBuilder()
         .setCustomId('prev')
         .setLabel('Previous')
-        .setStyle('SECONDARY')
+        .setStyle(pkg.ButtonStyle.Secondary)
         .setDisabled(currentPage === 1),
-      new MessageButton()
+      new pkg.ButtonBuilder()
         .setCustomId('next')
         .setLabel('Next')
-        .setStyle('SECONDARY')
+        .setStyle(pkg.ButtonStyle.Secondary)
         .setDisabled(currentPage === totalPages)
     );
 
   return row;
-};
-
-export const handleButtonInteraction = async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  const selectedDay = interaction.customId;
-  await interaction.deferUpdate();
-
-  const animeData = await fetchAnimeData(selectedDay);
-  const totalPages = Math.ceil(animeData.length / 10);
-  let currentPage = 1;
-
-  const embed = createAnimeEmbed(animeData, currentPage);
-  const row = createPaginationButtons(currentPage, totalPages);
-
-  await interaction.editReply({ content: `You selected: ${selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}`, components: [row], embeds: [embed] });
-
-  const filter = i => i.customId === 'prev' || i.customId === 'next';
-  const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
-
-  collector.on('collect', async i => {
-    if (i.customId === 'prev') {
-      currentPage--;
-    } else if (i.customId === 'next') {
-      currentPage++;
-    }
-
-    const newEmbed = createAnimeEmbed(animeData, currentPage);
-    const newRow = createPaginationButtons(currentPage, totalPages);
-
-    await i.update({ embeds: [newEmbed], components: [newRow] });
-  });
-
-  collector.on('end', collected => {
-    console.log(`Collected ${collected.size} interactions.`);
-    interaction.editReply({ components: [] });
-  });
 };

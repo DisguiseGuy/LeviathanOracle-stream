@@ -5,7 +5,6 @@ import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
 import { fetchMangaDetails } from './utils/querry.js';
 import { setInterval } from 'timers/promises';
-import { handleButtonInteraction } from './utils/anime-schedule.js';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
@@ -117,8 +116,6 @@ client.on('interactionCreate', async (interaction) => {
       console.error(error);
       await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
     }
-  } else {
-    await handleButtonInteraction(interaction);
   }
 });
 
