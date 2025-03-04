@@ -18,11 +18,11 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
-  const command = commandModule.default;
+  const command = commandModule.default; // Access the default export
   client.commands.set(command.data.name, command);
 }
 
@@ -41,7 +41,7 @@ async function checkForNewReleases() {
         if (row.anime_title) {
           console.log(`Fetching details for anime: ${row.anime_title}`);
           const animeDetails = await fetchAnimeDetails(row.anime_title);
-          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) {
+          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
             console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
             const user = await client.users.fetch(row.user_id);
             user.send({
