@@ -42,8 +42,18 @@ export const createAnimeEmbed = (animeList, page = 1) => {
   const pageData = animeList.slice(start, end);
 
   pageData.forEach(anime => {
-    embed.addFields({ name: `${anime.episodeDate} ${anime.english || anime.title}`, value: `Episode ${anime.episodeNumber || 'TBA' }` });
-  });
+    embed.addFields({ 
+  name: `${anime.english || anime.title || 'UNKNOWN TITLE'}`, 
+  value: `**Episode ${anime.episodeNumber || 'TBA'}** - Airs on ${new Date(anime.episodeDate).toLocaleString('en-US', { 
+    month: 'numeric', 
+    day: 'numeric', 
+    year: 'numeric', 
+    hour: 'numeric', 
+    minute: '2-digit', 
+    second: '2-digit', 
+    hour12: true 
+  })}`
+});
 
   return embed;
 };
