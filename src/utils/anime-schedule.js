@@ -41,7 +41,7 @@ export const createAnimeEmbed = (animeList, page = 1) => {
   const end = start + 10;
   const pageData = animeList.slice(start, end);
 
-  pageData.forEach(anime => {
+pageData.forEach(anime => {
     embed.addFields({ 
   name: `${anime.english || anime.title || 'UNKNOWN TITLE'}`, 
   value: `**Episode ${anime.episodeNumber || 'TBA'}** - Airs on ${new Date(anime.episodeDate).toLocaleString('en-US', { 
@@ -53,6 +53,7 @@ export const createAnimeEmbed = (animeList, page = 1) => {
     second: '2-digit', 
     hour12: true 
   })}`
+  });
 });
 
   return embed;
