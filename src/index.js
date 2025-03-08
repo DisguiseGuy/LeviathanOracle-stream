@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import pkg from 'discord.js';
+import pkg, {ActivityType} from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
-import { fetchMangaDetails } from './utils/querry.js';
-import { setInterval } from 'timers/promises';
+//import { fetchMangaDetails } from './utils/querry.js';
+//import { setInterval } from 'timers/promises';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
@@ -18,17 +18,20 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+const commandFiles = fs
+  .readdirSync('./src/commands')
+  .filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
   const command = commandModule.default; // Access the default export
   client.commands.set(command.data.name, command);
 }
+
 // Function to check for new anime episodes and manga chapters
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
-  db.all(`SELECT DISTINCT user_id, anime_title, manga_title FROM watchlists`, async (err, rows) => {
+  db.all(`SELECT DISTINCT user_id, anime_title FROM watchlists`, async (err, rows) => {
     if (err) {
       console.error('DB Select Error:', err);
       return;
@@ -44,44 +47,23 @@ async function checkForNewReleases() {
           if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
             console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
             const user = await client.users.fetch(row.user_id);
+            // Build the embed object
+            const embed = {
+              color: 0x0099ff,
+              title: `New Episode of ${animeDetails.title.romaji}`,
+              description: `Episode ${animeDetails.nextAiringEpisode.episode} is airing soon!`
+            };
+
+            // Only include an image if available
+            if (animeDetails.coverImage && animeDetails.coverImage.large) {
+              embed.image = { url: animeDetails.coverImage.large };
+            }
+
             user.send({
-              embeds: [
-                {
-                  color: 0x0099ff,
-                  title: `New Episode of ${animeDetails.title.romaji}`,
-                  description: `Episode ${animeDetails.nextAiringEpisode.episode} is airing soon!`,
-                  image: {
-                    url: animeDetails.coverImage.large,
-                  },
-                },
-              ],
+              embeds: [embed]
             });
           } else {
             console.log(`No new episodes for ${row.anime_title} within the next hour.`);
-          }
-        }
-
-        if (row.manga_title) {
-          console.log(`Fetching details for manga: ${row.manga_title}`);
-          const mangaDetails = await fetchMangaDetails(row.manga_title);
-          if (mangaDetails.chapters && mangaDetails.chapters.length > 0) {
-            const latestChapter = mangaDetails.chapters[0];
-            console.log(`New chapter of ${mangaDetails.title.romaji} is out: Chapter ${latestChapter.chapter}`);
-            const user = await client.users.fetch(row.user_id);
-            user.send({
-              embeds: [
-                {
-                  color: 0x0099ff,
-                  title: `New Chapter of ${mangaDetails.title.romaji}`,
-                  description: `Chapter ${latestChapter.chapter} is out now!`,
-                  image: {
-                    url: mangaDetails.coverImage.large,
-                  },
-                },
-              ],
-            });
-          } else {
-            console.log(`No new chapters for ${row.manga_title} available.`);
           }
         }
       } catch (error) {
@@ -96,7 +78,7 @@ client.once('ready', () => {
     status: 'online',
     activities: [{
       name: 'Sea of Knowledge',
-      type: 'PLAYING'
+      type: ActivityType.Listening,
     }],
   });
 
