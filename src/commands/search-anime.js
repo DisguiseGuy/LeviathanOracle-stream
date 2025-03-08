@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import axios from 'axios';
 
-// AnimeSchedule API Configuration
+// AnimeSchedule API Configuration for fetching timetable
 const API_KEY = process.env.ANIMESCHEDULE_TOKEN;
 const BASE_URL = 'https://animeschedule.net/api/v3';
 
