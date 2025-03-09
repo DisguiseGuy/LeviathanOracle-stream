@@ -8,19 +8,32 @@ const API_KEY = process.env.ANIMESCHEDULE_TOKEN;
 
 export const fetchDailySchedule = async (day, airType = 'all') => {
   try {
-    const response = await axios.get(`${BASE_URL}/timetables/${airType}`, {
+    const response = await axios.get(`${BASE_URL}/timetables/${airType}?cb=${Date.now()}&random=${Math.random()}`, {
       headers: {
-        'Authorization': `Bearer ${API_KEY}`
+        'Authorization': `Bearer ${API_KEY}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
 
+    console.log('Fetched Anime Schedule Data:', JSON.stringify(response.data, null, 2)); // Log full response
+
     if (response.data && response.data.length > 0) {
+      console.log('Raw episode dates before filtering:', response.data.map(anime => ({
+        title: anime.english || anime.title || 'UNKNOWN',
+        episodeNumber: anime.episodeNumber,
+        episodeDate: anime.episodeDate
+      })));
+
       const dayOfWeek = day.toLowerCase();
       const filteredData = response.data.filter(anime => {
         const date = new Date(anime.episodeDate);
         const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
         return weekday === dayOfWeek;
       });
+
+      console.log('Filtered Schedule for', day, ':', filteredData);
       return filteredData;
     } else {
       return [];
@@ -41,20 +54,20 @@ export const createAnimeEmbed = (animeList, page = 1) => {
   const end = start + 10;
   const pageData = animeList.slice(start, end);
 
-pageData.forEach(anime => {
+  pageData.forEach(anime => {
     embed.addFields({ 
-  name: `${anime.english || anime.title || 'UNKNOWN TITLE'}`, 
-  value: `**Episode ${anime.episodeNumber || 'TBA'}** - Airs on ${new Date(anime.episodeDate).toLocaleString('en-US', { 
-    month: 'numeric', 
-    day: 'numeric', 
-    year: 'numeric', 
-    hour: 'numeric', 
-    minute: '2-digit', 
-    second: '2-digit', 
-    hour12: true 
-  })}`
+      name: `${anime.english || anime.title || 'UNKNOWN TITLE'}`, 
+      value: `**Episode ${anime.episodeNumber || 'TBA'}** - Airs on ${new Date(anime.episodeDate).toLocaleString('en-US', { 
+        month: 'numeric', 
+        day: 'numeric', 
+        year: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit', 
+        second: '2-digit', 
+        hour12: true 
+      })}`
+    });
   });
-});
 
   return embed;
 };
