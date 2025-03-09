@@ -18,7 +18,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+const commandFiles = fs.readdirSync('./LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
@@ -26,7 +26,7 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 
-// Function to check for new anime episodes and manga chapters
+// Function to check for new anime episodes
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
   db.all(`SELECT DISTINCT user_id, anime_title FROM watchlists`, async (err, rows) => {
@@ -42,30 +42,50 @@ async function checkForNewReleases() {
         if (row.anime_title) {
           console.log(`Fetching details for anime: ${row.anime_title}`);
           const animeDetails = await fetchAnimeDetails(row.anime_title);
-          if (animeDetails.nextAiringEpisode && animeDetails.nextAiringEpisode.timeUntilAiring < 3600) { // Less than 1 hour
-            console.log(`New episode of ${animeDetails.title.romaji} airing soon!`);
-            const user = await client.users.fetch(row.user_id);
-            // Build the embed object
-            const embed = {
-              color: 0x0099ff,
-              title: `New Episode of ${animeDetails.title.romaji}`,
-              description: `Episode ${animeDetails.nextAiringEpisode.episode} is airing soon!`
-            };
 
-            // Only include an image if available
-            if (animeDetails.coverImage && animeDetails.coverImage.large) {
-              embed.image = { url: animeDetails.coverImage.large };
+          if (animeDetails.nextAiringEpisode) {
+            const episodeNumber = animeDetails.nextAiringEpisode.episode;
+            const airingTimestamp = animeDetails.nextAiringEpisode.airingAt * 1000; // Convert to milliseconds
+            const currentTime = Date.now();
+
+            // Check if the episode has already aired by comparing the current time to the airing time
+            // Only notify if the episode aired within the last hour to prevent duplicates
+            if (currentTime >= airingTimestamp && currentTime - airingTimestamp <= 3600000) {
+              console.log(`New episode of ${animeDetails.title.romaji} (Episode ${episodeNumber}) has been released!`);
+              console.log(`Airing time: ${new Date(airingTimestamp).toISOString()}, Current time: ${new Date(currentTime).toISOString()}`);
+              
+              const user = await client.users.fetch(row.user_id);
+
+              const embed = {
+                color: 0x0099ff,
+                title: `New Episode of ${animeDetails.title.romaji} Released!`,
+                description: `Episode ${episodeNumber} is now available!`,
+                timestamp: new Date(airingTimestamp),
+                thumbnail: {
+                  url: animeDetails.coverImage.large
+                },
+                image: {
+                  url: animeDetails.coverImage.large
+                },
+                footer: {
+                  text: 'Episode just released!'
+                }
+              };
+
+              user.send({ embeds: [embed] }).then(() => {
+                console.log(`Successfully sent notification to user ${row.user_id} for ${animeDetails.title.romaji}`);
+              }).catch(error => {
+                console.error(`Failed to send notification to user ${row.user_id}:`, error);
+              });
+            } else {
+              console.log(`No new episodes for ${row.anime_title} yet. Next episode (#${episodeNumber}) airs at ${new Date(airingTimestamp).toISOString()}`);
             }
-
-            user.send({
-              embeds: [embed]
-            });
           } else {
-            console.log(`No new episodes for ${row.anime_title} within the next hour.`);
+            console.log(`No scheduled episodes for ${row.anime_title}`);
           }
         }
       } catch (error) {
-        console.error('Error fetching details:', error);
+        console.error(`Error processing watchlist entry for ${row.anime_title}:`, error);
       }
     }
   });

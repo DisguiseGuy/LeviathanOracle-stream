@@ -18,6 +18,9 @@ export async function fetchAnimeDetails(animeTitle) {
           timeUntilAiring
           episode
         }
+        coverImage {
+          large
+        }
       }
     }
   `;
