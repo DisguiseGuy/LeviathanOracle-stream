@@ -3,8 +3,6 @@ import pkg, {ActivityType} from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetails } from './utils/anilist.js';
-//import { fetchMangaDetails } from './utils/querry.js';
-//import { setInterval } from 'timers/promises';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
