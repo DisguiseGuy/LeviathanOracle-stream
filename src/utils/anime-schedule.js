@@ -17,14 +17,6 @@ export const fetchDailySchedule = async (day, airType = 'all') => {
       }
     });
 
-    // Disabled debug logging for schedule data
-    // console.log('Fetched Anime Schedule Data:', JSON.stringify(response.data, null, 2));
-    // console.log('Raw episode dates before filtering:', response.data.map(anime => ({
-    //   title: anime.english || anime.title || 'UNKNOWN',
-    //   episodeNumber: anime.episodeNumber,
-    //   episodeDate: anime.episodeDate
-    // })));
-
     if (response.data && response.data.length > 0) {
       const dayOfWeek = day.toLowerCase();
       const filteredData = response.data.filter(anime => {
@@ -33,8 +25,6 @@ export const fetchDailySchedule = async (day, airType = 'all') => {
         return weekday === dayOfWeek;
       });
 
-      // Disabled debug logging for filtered schedule
-      // console.log('Filtered Schedule for', day, ':', filteredData);
       return filteredData;
     } else {
       return [];
