@@ -36,10 +36,11 @@ export default {
       }
 
       // Create buttons for selection
-      const buttons = animeList.map(anime => {
-        let title = anime.title.length > 80 ? anime.title.substring(0, 77) + '...' : anime.title;
+      const buttons = animeList.map((anime, index) => {
+        let title = anime.title_english || anime.title;
+        title = title.length > 80 ? title.substring(0, 77) + '...' : title;
         return new ButtonBuilder()
-          .setCustomId(`anime_${anime.mal_id}`)
+          .setCustomId(`anime_${anime.mal_id}_${index}`)
           .setLabel(title)
           .setStyle(ButtonStyle.Primary);
       });
