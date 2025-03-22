@@ -72,10 +72,13 @@ export default {
               });
             }
 
+            // Verify the title before adding it to the database
+            const verifiedTitle = animeDetails.title.romaji || animeDetails.title.english || title;
+
             // Not found yet, insert it
             db.run(
               `INSERT INTO watchlists (user_id, anime_title) VALUES (?, ?)`,
-              [userId, title],
+              [userId, verifiedTitle],
               function(insertErr) {
                 if (insertErr) {
                   console.error('DB Insert Error:', insertErr);
@@ -90,7 +93,7 @@ export default {
                     {
                       color: 0x00ff00,
                       title: 'Watchlist Update',
-                      description: `**${title}** has been added to your watchlist.`
+                      description: `**${verifiedTitle}** has been added to your watchlist.`
                     }
                   ],
                   ephemeral: false
