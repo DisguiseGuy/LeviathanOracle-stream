@@ -36,78 +36,76 @@ export default {
 
     if (subcommand === 'add') {
       const title = interaction.options.getString('title');
-      // Check if the user already has this anime
-      db.get(
-        `SELECT * FROM watchlists WHERE user_id = ? AND anime_title = ?`,
-        [userId, title],
-        async (err, row) => {
-          if (err) {
-            console.error('DB Error:', err);
-            return interaction.reply({
-              content: 'Database error. Please try again later.',
-              ephemeral: false
-            });
-          }
-          if (row) {
-            // Already in watchlist
-            return interaction.reply({
-              embeds: [
-                {
-                  color: 0xff9900,
-                  title: 'Watchlist Update',
-                  description: `**${title}** is already in your watchlist.`
-                }
-              ],
-              ephemeral: false
-            });
-          }
 
-          // Fetch anime details from AniList
-          try {
-            const animeDetails = await fetchAnimeDetails(title);
-            if (!animeDetails) {
+      try {
+        const animeDetails = await fetchAnimeDetails(title);
+        if (!animeDetails) {
+          return interaction.reply({
+            content: 'Anime not found. Please check the title and try again.',
+            ephemeral: false,
+          });
+        }
+
+        const animeId = animeDetails.id;
+        const verifiedTitle = animeDetails.title.romaji || animeDetails.title.english || title;
+
+        db.get(
+          `SELECT * FROM watchlists WHERE user_id = ? AND anime_id = ?`,
+          [userId, animeId],
+          (err, row) => {
+            if (err) {
+              console.error('DB Error:', err);
               return interaction.reply({
-                content: 'Anime not found. Please check the title and try again.',
-                ephemeral: false
+                content: 'Database error. Please try again later.',
+                ephemeral: false,
+              });
+            }
+            if (row) {
+              return interaction.reply({
+                embeds: [
+                  {
+                    color: 0xff9900,
+                    title: 'Watchlist Update',
+                    description: `**${verifiedTitle}** is already in your watchlist.`,
+                  },
+                ],
+                ephemeral: false,
               });
             }
 
-            // Verify the title before adding it to the database
-            const verifiedTitle = animeDetails.title.romaji || animeDetails.title.english || title;
-
-            // Not found yet, insert it
             db.run(
-              `INSERT INTO watchlists (user_id, anime_title) VALUES (?, ?)`,
-              [userId, verifiedTitle],
-              function(insertErr) {
+              `INSERT INTO watchlists (user_id, anime_id, anime_title) VALUES (?, ?, ?)`,
+              [userId, animeId, verifiedTitle],
+              (insertErr) => {
                 if (insertErr) {
                   console.error('DB Insert Error:', insertErr);
                   return interaction.reply({
                     content: 'Could not add to watchlist. Please try again later.',
-                    ephemeral: false
+                    ephemeral: false,
                   });
                 }
-                // Successfully added
+
                 interaction.reply({
                   embeds: [
                     {
                       color: 0x00ff00,
                       title: 'Watchlist Update',
-                      description: `**${verifiedTitle}** has been added to your watchlist.`
-                    }
+                      description: `**${verifiedTitle}** has been added to your watchlist.`,
+                    },
                   ],
-                  ephemeral: false
+                  ephemeral: false,
                 });
               }
             );
-          } catch (error) {
-            return interaction.reply({
-              content: 'Error fetching anime details. Please try again later.',
-              ephemeral: false
-            });
           }
-        }
-      );
+        );
+      } catch (error) {
+        console.error('Error fetching anime details:', error);
+        return interaction.reply({
+          content: 'Error fetching anime details. Please try again later.',
+          ephemeral: false,
+        });
+      }
     } else if (subcommand === 'remove') {
       const title = interaction.options.getString('title');
       db.run(

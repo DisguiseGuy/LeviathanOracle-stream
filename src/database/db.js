@@ -21,6 +21,7 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS watchlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
+      anime_id INTEGER NOT NULL,
       anime_title TEXT NOT NULL
     )
   `, (err) => {
