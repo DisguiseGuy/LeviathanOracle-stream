@@ -21,8 +21,9 @@ db.serialize(() => {
     CREATE TABLE IF NOT EXISTS watchlists (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
+      anime_title TEXT NOT NULL,
       anime_id INTEGER NOT NULL,
-      anime_title TEXT NOT NULL
+      next_airing_at INTEGER NOT NULL
     )
   `, (err) => {
     if (err) {
@@ -35,6 +36,7 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       discord_id TEXT PRIMARY KEY,
+      timezone TEXT,
       mal_username TEXT,
       anilist_username TEXT
     )

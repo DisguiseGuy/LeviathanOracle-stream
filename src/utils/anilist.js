@@ -1,12 +1,14 @@
 import axios from 'axios';
 
 const ANILIST_API_URL = 'https://graphql.anilist.co';
-const animeCache = new Map();
 
-export async function fetchAnimeDetails(animeTitle) {
+export async function fetchAnimeDetails(input) {
+  // Determine if the input is an ID (number) or a title (string)
+  const isId = typeof input === 'number';
+
   const query = `
-    query ($search: String) {
-      Media(search: $search, type: ANIME) {
+    query ($id: Int, $search: String) {
+      Media(${isId ? 'id: $id' : 'search: $search'}, type: ANIME) {
         id
         title {
           romaji
@@ -26,7 +28,7 @@ export async function fetchAnimeDetails(animeTitle) {
     }
   `;
 
-  const variables = { search: animeTitle };
+  const variables = isId ? { id: input } : { search: input };
 
   try {
     const response = await axios.post(ANILIST_API_URL, { query, variables });
@@ -35,44 +37,4 @@ export async function fetchAnimeDetails(animeTitle) {
     console.error('Error fetching anime details:', error);
     throw error;
   }
-}
-
-export async function fetchAnimeDetailsById(animeId) {
-  if (animeCache.has(animeId)) {
-    return animeCache.get(animeId);
-  }
-
-  const response = await fetch(`https://graphql.anilist.co`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: `
-        query ($id: Int) {
-          Media(id: $id, type: ANIME) {
-            id
-            title {
-              romaji
-              english
-            }
-            nextAiringEpisode {
-              episode
-              timeUntilAiring
-            }
-            coverImage {
-              large
-            }
-          }
-        }
-      `,
-      variables: { id: animeId },
-    }),
-  });
-
-  const data = await response.json();
-  if (data && data.data && data.data.Media) {
-    animeCache.set(animeId, data.data.Media);
-    return data.data.Media;
-  }
-
-  return null;
 }
