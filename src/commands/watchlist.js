@@ -28,7 +28,7 @@ export default {
         .setDescription('Show your current watchlist'))
     .addSubcommand(subcommand =>
       subcommand
-        .setName('SetTimezone')
+        .setName('set-timezone')
         .setDescription('Set your timezone')
         .addStringOption(option =>
           option.setName('timezone')
