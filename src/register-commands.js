@@ -3,7 +3,7 @@ import { REST, Routes } from 'discord.js';
 import fs from 'fs';
 
 const commands = [];
-const commandFiles = fs.readdirSync('./src/commands').filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync('src/commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
@@ -22,7 +22,7 @@ try {
   console.log('Started refreshing application (/) commands.');
 
   await rest.put(
-    Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+    Routes.applicationCommands(process.env.DISCORD_BOT_ID),
     { body: commands },
   );
 
