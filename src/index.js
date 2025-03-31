@@ -2,7 +2,7 @@ import 'dotenv/config';
 import pkg, { ActivityType } from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
-import { fetchAnimeDetails } from './utils/anilist.js';
+import { fetchAnimeDetailsById } from './utils/anilist.js';
 import moment from 'moment-timezone';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
@@ -17,7 +17,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+const commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
@@ -46,7 +46,7 @@ async function checkForNewReleases() {
       }
 
       try {
-        const animeDetails = await fetchAnimeDetails(row.anime_id); // Fetch by ID
+        const animeDetails = await fetchAnimeDetailsById(row.anime_id); // Fetch by ID
 
         if (animeDetails.nextAiringEpisode) {
           const episodeNumber = animeDetails.nextAiringEpisode.episode;

@@ -23,7 +23,7 @@ db.serialize(() => {
       user_id TEXT NOT NULL,
       anime_title TEXT NOT NULL,
       anime_id INTEGER NOT NULL,
-      next_airing_at INTEGER NOT NULL
+      next_airing_at INTEGER
     )
   `, (err) => {
     if (err) {
