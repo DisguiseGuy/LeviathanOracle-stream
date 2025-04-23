@@ -3,7 +3,6 @@ import pkg, { ActivityType } from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetailsById } from './utils/anilist.js';
-import moment from 'moment-timezone';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
@@ -17,7 +16,7 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+const commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 
 for (const file of commandFiles) {
   const commandModule = await import(`./commands/${file}`);
@@ -39,50 +38,65 @@ async function checkForNewReleases() {
     for (const row of rows) {
       const currentTime = Date.now();
 
-      // Skip if the next episode hasn't aired yet
-      if (row.next_airing_at && row.next_airing_at > currentTime) {
-        console.log(`Skipping anime ID ${row.anime_id}, next episode airs at ${new Date(row.next_airing_at).toISOString()}`);
-        continue;
-      }
+      // 1. Check if the stored timestamp has been reached or passed
+      if (row.next_airing_at && currentTime >= row.next_airing_at) {
+        try {
+          // 2. Fetch latest anime details
+          const animeDetails = await fetchAnimeDetailsById(row.anime_id);
 
-      try {
-        const animeDetails = await fetchAnimeDetailsById(row.anime_id); // Fetch by ID
+          // 3. Notify the user for the episode that just aired
+          const user = await client.users.fetch(row.user_id);
 
-        if (animeDetails.nextAiringEpisode) {
-          const episodeNumber = animeDetails.nextAiringEpisode.episode;
-          const airingTimestamp = animeDetails.nextAiringEpisode.airingAt * 1000;
+          // Format time as UTC string (Discord will localize)
+          const utcAiringTime = new Date(row.next_airing_at).toUTCString();
 
-          // Update the database with the new airing timestamp
-          db.run(
-            `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
-            [airingTimestamp, row.user_id, row.anime_id]
-          );
+          const episodeNumber = animeDetails.nextAiringEpisode
+            ? animeDetails.nextAiringEpisode.episode - 1 // Previous episode just aired
+            : 'Latest';
 
-          if (currentTime >= airingTimestamp) {
-            const user = await client.users.fetch(row.user_id);
+          const embed = {
+            color: 0x0099ff,
+            title: `New Episode of ${animeDetails.title.romaji} Released!`,
+            description: `Episode ${episodeNumber} is now available!\nAired at: ${utcAiringTime} UTC`,
+            timestamp: new Date(row.next_airing_at),
+            thumbnail: { url: animeDetails.coverImage.large },
+            footer: { text: 'Episode just released!' },
+          };
 
-            const userTimezone = row.timezone || 'UTC'; // Default to UTC if not set
-            const localAiringTime = moment(airingTimestamp).tz(userTimezone).format('YYYY-MM-DD HH:mm:ss');
-            console.log(`Notifying user in timezone ${userTimezone}: ${localAiringTime}`);
+          await user.send({ embeds: [embed] });
+          console.log(`Notification sent to ${row.user_id} for ${animeDetails.title.romaji}`);
 
-            const embed = {
-              color: 0x0099ff,
-              title: `New Episode of ${animeDetails.title.romaji} Released!`,
-              description: `Episode ${episodeNumber} is now available!`,
-              timestamp: new Date(airingTimestamp),
-              thumbnail: { url: animeDetails.coverImage.large },
-              footer: { text: 'Episode just released!' },
-            };
-
-            user.send({ embeds: [embed] }).then(() => {
-              console.log(`Notification sent to ${row.user_id} for ${animeDetails.title.romaji}`);
-            }).catch(error => {
-              console.error(`Failed to send notification to ${row.user_id}:`, error);
-            });
+          // 4. Update the DB with the new next airing timestamp, if it's in the future and different
+          if (
+            animeDetails.nextAiringEpisode &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 !== row.next_airing_at &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 > currentTime
+          ) {
+            db.run(
+              `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
+              [animeDetails.nextAiringEpisode.airingAt * 1000, row.user_id, row.anime_id]
+            );
           }
+        } catch (error) {
+          console.error(`Error processing watchlist entry for anime ID ${row.anime_id}:`, error);
         }
-      } catch (error) {
-        console.error(`Error processing watchlist entry for anime ID ${row.anime_id}:`, error);
+      } else {
+        // Optionally, update the DB if the next airing time has changed and is in the future
+        try {
+          const animeDetails = await fetchAnimeDetailsById(row.anime_id);
+          if (
+            animeDetails.nextAiringEpisode &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 !== row.next_airing_at &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 > currentTime
+          ) {
+            db.run(
+              `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
+              [animeDetails.nextAiringEpisode.airingAt * 1000, row.user_id, row.anime_id]
+            );
+          }
+        } catch (error) {
+          console.error(`Error updating next airing for anime ID ${row.anime_id}:`, error);
+        }
       }
     }
   });

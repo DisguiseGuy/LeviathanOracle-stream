@@ -36,7 +36,6 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
       discord_id TEXT PRIMARY KEY,
-      timezone TEXT,
       mal_username TEXT,
       anilist_username TEXT
     )

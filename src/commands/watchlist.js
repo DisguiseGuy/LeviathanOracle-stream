@@ -26,15 +26,7 @@ export default {
     .addSubcommand(subcommand =>
       subcommand
         .setName('show')
-        .setDescription('Show your current watchlist'))
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('set-timezone')
-        .setDescription('Set your timezone')
-        .addStringOption(option =>
-          option.setName('timezone')
-            .setDescription('Your timezone (e.g., UTC, America/New_York)')
-            .setRequired(true))),
+        .setDescription('Show your current watchlist')),
 
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
@@ -58,7 +50,7 @@ export default {
 
         // Create buttons for selection
         const buttons = animeList.map((anime, index) => {
-          let displayTitle = anime.title.romaji || anime.title.english || anime.title.native;
+          let displayTitle = anime.title.english || anime.title.romaji || anime.title.native;
           displayTitle = displayTitle.length > 80 ? displayTitle.substring(0, 77) + '...' : displayTitle;
           return new ButtonBuilder()
             .setCustomId(`add_anime_${anime.id}_${index}`)
@@ -87,8 +79,7 @@ export default {
               return await i.followUp({ content: 'Anime not found. Please try again.', ephemeral: true });
             }
 
-            const verifiedTitle = selectedAnime.title.romaji || selectedAnime.title.english || selectedAnime.title.native;
-            const nextAiringAt = selectedAnime.nextAiringEpisode?.airingAt * 1000 || null;
+            const verifiedTitle = selectedAnime.title.romaji || selectedAnime.title.native || selectedAnime.title.english;
 
             // Check if the anime is already in the watchlist
             db.get(
@@ -113,9 +104,12 @@ export default {
                 }
 
                 // Add the anime to the watchlist
+                const displayTitle = selectedAnime.title.english || selectedAnime.title.romaji || selectedAnime.title.native;
+                const nextAiringAt = selectedAnime.nextAiringEpisode?.airingAt * 1000 || null;
+
                 db.run(
                   `INSERT INTO watchlists (user_id, anime_id, anime_title, next_airing_at) VALUES (?, ?, ?, ?)`,
-                  [userId, animeId, verifiedTitle, nextAiringAt],
+                  [userId, animeId, displayTitle, nextAiringAt],
                   function(insertErr) {
                     if (insertErr) {
                       console.error('DB Insert Error:', insertErr);
@@ -162,32 +156,95 @@ export default {
         await interaction.editReply({ embeds: [embed], ephemeral: true });
       }
     } else if (subcommand === 'remove') {
-      const title = interaction.options.getString('title');
-      db.run(
-        `DELETE FROM watchlists WHERE user_id = ? AND anime_title = ?`,
-        [userId, title],
-        function(err) {
+      const inputTitle = interaction.options.getString('title').toLowerCase();
+
+      // Fetch all watchlist entries for the user
+      db.all(
+        `SELECT anime_id, anime_title FROM watchlists WHERE user_id = ?`,
+        [userId],
+        async (err, rows) => {
           if (err) {
-            console.error('DB Delete Error:', err);
+            console.error('DB Select Error:', err);
             const embed = new EmbedBuilder()
               .setColor('Red')
               .setTitle('Error Removing Anime')
-              .setDescription('An error occurred while removing the anime from your watchlist.');
+              .setDescription('An error occurred while accessing your watchlist.');
             return interaction.reply({ embeds: [embed], ephemeral: true });
           }
-          if (this.changes > 0) {
-            const embed = new EmbedBuilder()
-              .setColor('Green')
-              .setTitle('Anime Removed')
-              .setDescription(`**${title}** has been removed from your watchlist.`);
-            interaction.reply({ embeds: [embed], ephemeral: true });
-          } else {
+
+          // Find a match by comparing input to anime_title (case-insensitive)
+          const matchedRow = rows.find(row =>
+            row.anime_title.toLowerCase() === inputTitle
+          );
+
+          // If not found, try fetching AniList details for more title variants
+          if (!matchedRow) {
+            // Try to find by fetching AniList details for each anime_id
+            for (const row of rows) {
+              try {
+                const animeDetails = await fetchAnimeDetails(row.anime_title);
+                const possibleTitles = [
+                  animeDetails.title.english,
+                  animeDetails.title.romaji,
+                  animeDetails.title.native
+                ].filter(Boolean).map(t => t.toLowerCase());
+
+                if (possibleTitles.includes(inputTitle)) {
+                  // Found a match, remove it
+                  db.run(
+                    `DELETE FROM watchlists WHERE user_id = ? AND anime_id = ?`,
+                    [userId, row.anime_id],
+                    function (delErr) {
+                      if (delErr) {
+                        console.error('DB Delete Error:', delErr);
+                        const embed = new EmbedBuilder()
+                          .setColor('Red')
+                          .setTitle('Error Removing Anime')
+                          .setDescription('An error occurred while removing the anime from your watchlist.');
+                        return interaction.reply({ embeds: [embed], ephemeral: true });
+                      }
+                      const embed = new EmbedBuilder()
+                        .setColor('Green')
+                        .setTitle('Anime Removed')
+                        .setDescription(`**${row.anime_title}** has been removed from your watchlist.`);
+                      return interaction.reply({ embeds: [embed], ephemeral: true });
+                    }
+                  );
+                  return;
+                }
+              } catch (fetchErr) {
+                // Ignore fetch errors and continue
+              }
+            }
+
+            // No match found
             const embed = new EmbedBuilder()
               .setColor('Yellow')
               .setTitle('Anime Not Found')
-              .setDescription(`**${title}** is not in your watchlist.`);
-            interaction.reply({ embeds: [embed], ephemeral: true });
+              .setDescription(`No matching anime found in your watchlist for **${inputTitle}**.`);
+            return interaction.reply({ embeds: [embed], ephemeral: true });
           }
+
+          // If found by anime_title, remove it
+          db.run(
+            `DELETE FROM watchlists WHERE user_id = ? AND anime_id = ?`,
+            [userId, matchedRow.anime_id],
+            function (delErr) {
+              if (delErr) {
+                console.error('DB Delete Error:', delErr);
+                const embed = new EmbedBuilder()
+                  .setColor('Red')
+                  .setTitle('Error Removing Anime')
+                  .setDescription('An error occurred while removing the anime from your watchlist.');
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+              }
+              const embed = new EmbedBuilder()
+                .setColor('Green')
+                .setTitle('Anime Removed')
+                .setDescription(`**${matchedRow.anime_title}** has been removed from your watchlist.`);
+              return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
+          );
         }
       );
     } else if (subcommand === 'show') {
