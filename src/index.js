@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import pkg, {ActivityType} from 'discord.js';
+import pkg, { ActivityType } from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
-import { fetchAnimeDetails } from './utils/anilist.js';
+import { fetchAnimeDetailsById } from './utils/anilist.js';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
@@ -27,7 +27,7 @@ for (const file of commandFiles) {
 // Function to check for new anime episodes
 async function checkForNewReleases() {
   console.log('Checking for new releases...');
-  db.all(`SELECT DISTINCT user_id, anime_title FROM watchlists`, async (err, rows) => {
+  db.all(`SELECT DISTINCT user_id, anime_id, next_airing_at FROM watchlists`, async (err, rows) => {
     if (err) {
       console.error('DB Select Error:', err);
       return;
@@ -36,55 +36,67 @@ async function checkForNewReleases() {
     console.log(`Found ${rows.length} watchlist entries to check.`);
 
     for (const row of rows) {
-      try {
-        if (row.anime_title) {
-          console.log(`Fetching details for anime: ${row.anime_title}`);
-          const animeDetails = await fetchAnimeDetails(row.anime_title);
+      const currentTime = Date.now();
 
-          if (animeDetails.nextAiringEpisode) {
-            const episodeNumber = animeDetails.nextAiringEpisode.episode;
-            const airingTimestamp = animeDetails.nextAiringEpisode.airingAt * 1000; // Convert to milliseconds
-            const currentTime = Date.now();
-            const episodeAiredToday = new Date(airingTimestamp).toDateString() === new Date().toDateString();
+      // 1. Check if the stored timestamp has been reached or passed
+      if (row.next_airing_at && currentTime >= row.next_airing_at) {
+        try {
+          // 2. Fetch latest anime details
+          const animeDetails = await fetchAnimeDetailsById(row.anime_id);
 
-            // Check if the episode has already aired by comparing the current time to the airing time
-            // Only notify if the episode aired today
-            if (currentTime >= airingTimestamp && episodeAiredToday) {
-              console.log(`New episode of ${animeDetails.title.romaji} (Episode ${episodeNumber}) has been released!`);
-              console.log(`Airing time: ${new Date(airingTimestamp).toISOString()}, Current time: ${new Date(currentTime).toISOString()}`);
-              
-              const user = await client.users.fetch(row.user_id);
+          // 3. Notify the user for the episode that just aired
+          const user = await client.users.fetch(row.user_id);
 
-              const embed = {
-                color: 0x0099ff,
-                title: `New Episode of ${animeDetails.title.romaji} Released!`,
-                description: `Episode ${episodeNumber} is now available!`,
-                timestamp: new Date(airingTimestamp),
-                thumbnail: {
-                  url: animeDetails.coverImage.large
-                },
-                image: {
-                  url: animeDetails.coverImage.large
-                },
-                footer: {
-                  text: 'Episode just released!'
-                }
-              };
+          // Format time as UTC string (Discord will localize)
+          const utcAiringTime = new Date(row.next_airing_at).toUTCString();
 
-              user.send({ embeds: [embed] }).then(() => {
-                console.log(`Successfully sent notification to user ${row.user_id} for ${animeDetails.title.romaji}`);
-              }).catch(error => {
-                console.error(`Failed to send notification to user ${row.user_id}:`, error);
-              });
-            } else {
-              console.log(`No new episodes for ${row.anime_title} yet. Next episode (#${episodeNumber}) airs at ${new Date(airingTimestamp).toISOString()}`);
-            }
-          } else {
-            console.log(`No scheduled episodes for ${row.anime_title}`);
+          const episodeNumber = animeDetails.nextAiringEpisode
+            ? animeDetails.nextAiringEpisode.episode - 1 // Previous episode just aired
+            : 'Latest';
+
+          const embed = {
+            color: 0x0099ff,
+            title: `New Episode of ${animeDetails.title.romaji} Released!`,
+            description: `Episode ${episodeNumber} is now available!\nAired at: ${utcAiringTime} UTC`,
+            timestamp: new Date(row.next_airing_at),
+            thumbnail: { url: animeDetails.coverImage.large },
+            footer: { text: 'Episode just released!' },
+          };
+
+          await user.send({ embeds: [embed] });
+          console.log(`Notification sent to ${row.user_id} for ${animeDetails.title.romaji}`);
+
+          // 4. Update the DB with the new next airing timestamp, if it's in the future and different
+          if (
+            animeDetails.nextAiringEpisode &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 !== row.next_airing_at &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 > currentTime
+          ) {
+            db.run(
+              `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
+              [animeDetails.nextAiringEpisode.airingAt * 1000, row.user_id, row.anime_id]
+            );
           }
+        } catch (error) {
+          console.error(`Error processing watchlist entry for anime ID ${row.anime_id}:`, error);
         }
-      } catch (error) {
-        console.error(`Error processing watchlist entry for ${row.anime_title}:`, error);
+      } else {
+        // Optionally, update the DB if the next airing time has changed and is in the future
+        try {
+          const animeDetails = await fetchAnimeDetailsById(row.anime_id);
+          if (
+            animeDetails.nextAiringEpisode &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 !== row.next_airing_at &&
+            animeDetails.nextAiringEpisode.airingAt * 1000 > currentTime
+          ) {
+            db.run(
+              `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
+              [animeDetails.nextAiringEpisode.airingAt * 1000, row.user_id, row.anime_id]
+            );
+          }
+        } catch (error) {
+          console.error(`Error updating next airing for anime ID ${row.anime_id}:`, error);
+        }
       }
     }
   });
@@ -100,9 +112,9 @@ client.once('ready', () => {
   });
 
   console.log(`Logged in as ${client.user.tag}!`);
-  
-  // Check for new releases every 30 minutes
-  setInterval(checkForNewReleases, 1800000); // 30 minutes interval
+
+  // Check for new releases every hour
+  setInterval(checkForNewReleases, 3600000); // 1 hour interval
 });
 
 client.on('interactionCreate', async (interaction) => {
