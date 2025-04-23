@@ -113,8 +113,8 @@ client.once('ready', () => {
 
   console.log(`Logged in as ${client.user.tag}!`);
 
-  // Check for new releases every 30 minutes
-  setInterval(checkForNewReleases, 1800000); // 30 minutes interval
+  // Check for new releases every hour
+  setInterval(checkForNewReleases, 3600000); // 1 hour interval
 });
 
 client.on('interactionCreate', async (interaction) => {
