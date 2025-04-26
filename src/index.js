@@ -41,8 +41,14 @@ async function checkForNewReleases() {
       // 1. Check if the stored timestamp has been reached or passed
       if (row.next_airing_at && currentTime >= row.next_airing_at) {
         try {
-          // 2. Fetch latest anime details
+          // 2. Fetch latest anime details only if the episode might have aired
           const animeDetails = await fetchAnimeDetailsById(row.anime_id);
+
+          // Check if fetch was successful (assuming fetchAnimeDetailsById returns null/undefined on error or if details are missing)
+          if (!animeDetails) {
+            console.error(`Failed to fetch details for anime ID ${row.anime_id}. Skipping.`);
+            continue; // Skip to the next watchlist entry
+          }
 
           // 3. Notify the user for the episode that just aired
           const user = await client.users.fetch(row.user_id);
@@ -56,7 +62,7 @@ async function checkForNewReleases() {
 
           const embed = {
             color: 0x0099ff,
-            title: `New Episode of ${animeDetails.title.romaji} Released!`,
+            title: `New Episode of ${animeDetails.title.english || animeDetails.title.romaji} Released!`,
             description: `Episode ${episodeNumber} is now available!\nAired at: ${utcAiringTime} UTC`,
             timestamp: new Date(row.next_airing_at),
             thumbnail: { url: animeDetails.coverImage.large },
@@ -64,7 +70,7 @@ async function checkForNewReleases() {
           };
 
           await user.send({ embeds: [embed] });
-          console.log(`Notification sent to ${row.user_id} for ${animeDetails.title.romaji}`);
+          console.log(`Notification sent to ${row.user_id} for ${animeDetails.title.english || animeDetails.title.romaji}`);
 
           // 4. Update the DB with the new next airing timestamp, if it's in the future and different
           if (
@@ -79,23 +85,6 @@ async function checkForNewReleases() {
           }
         } catch (error) {
           console.error(`Error processing watchlist entry for anime ID ${row.anime_id}:`, error);
-        }
-      } else {
-        // Optionally, update the DB if the next airing time has changed and is in the future
-        try {
-          const animeDetails = await fetchAnimeDetailsById(row.anime_id);
-          if (
-            animeDetails.nextAiringEpisode &&
-            animeDetails.nextAiringEpisode.airingAt * 1000 !== row.next_airing_at &&
-            animeDetails.nextAiringEpisode.airingAt * 1000 > currentTime
-          ) {
-            db.run(
-              `UPDATE watchlists SET next_airing_at = ? WHERE user_id = ? AND anime_id = ?`,
-              [animeDetails.nextAiringEpisode.airingAt * 1000, row.user_id, row.anime_id]
-            );
-          }
-        } catch (error) {
-          console.error(`Error updating next airing for anime ID ${row.anime_id}:`, error);
         }
       }
     }
