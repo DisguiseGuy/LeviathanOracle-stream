@@ -4,4 +4,4 @@ generalidea.md
 node_modules/
 package-lock.json
 tests/
-src/database/watchlist.db
+src/database/database.db
