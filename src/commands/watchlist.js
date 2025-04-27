@@ -141,9 +141,10 @@ export default {
 
         collector.on('end', async collected => {
           if (collected.size === 0) {
-            const reply = await interaction.fetchReply();
-            if (reply) {
-              await interaction.editReply({ content: 'No selection made.', components: [] });
+            try {
+              await interaction.editReply({ content: 'Watchlist selection timed out.', components: [] });
+            } catch (error) {
+              console.error("Failed to edit interaction reply on collector end:", error);
             }
           }
         });
@@ -157,6 +158,8 @@ export default {
       }
     } else if (subcommand === 'remove') {
       const inputTitle = interaction.options.getString('title').toLowerCase();
+      // Defer the reply ephemerally as all responses in this block are ephemeral
+      await interaction.deferReply({ ephemeral: true });
 
       // Fetch all watchlist entries for the user
       db.all(
@@ -169,7 +172,7 @@ export default {
               .setColor('Red')
               .setTitle('Error Removing Anime')
               .setDescription('An error occurred while accessing your watchlist.');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.editReply({ embeds: [embed] });
           }
 
           // Find a match by comparing input to anime_title (case-insensitive)
@@ -201,13 +204,13 @@ export default {
                           .setColor('Red')
                           .setTitle('Error Removing Anime')
                           .setDescription('An error occurred while removing the anime from your watchlist.');
-                        return interaction.reply({ embeds: [embed], ephemeral: true });
+                        return interaction.editReply({ embeds: [embed] });
                       }
                       const embed = new EmbedBuilder()
                         .setColor('Green')
                         .setTitle('Anime Removed')
                         .setDescription(`**${row.anime_title}** has been removed from your watchlist.`);
-                      return interaction.reply({ embeds: [embed], ephemeral: true });
+                      return interaction.editReply({ embeds: [embed] });
                     }
                   );
                   return;
@@ -222,7 +225,7 @@ export default {
               .setColor('Yellow')
               .setTitle('Anime Not Found')
               .setDescription(`No matching anime found in your watchlist for **${inputTitle}**.`);
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.editReply({ embeds: [embed] });
           }
 
           // If found by anime_title, remove it
@@ -236,18 +239,21 @@ export default {
                   .setColor('Red')
                   .setTitle('Error Removing Anime')
                   .setDescription('An error occurred while removing the anime from your watchlist.');
-                return interaction.reply({ embeds: [embed], ephemeral: true });
+                return interaction.editReply({ embeds: [embed] });
               }
               const embed = new EmbedBuilder()
                 .setColor('Green')
                 .setTitle('Anime Removed')
                 .setDescription(`**${matchedRow.anime_title}** has been removed from your watchlist.`);
-              return interaction.reply({ embeds: [embed], ephemeral: true });
+              return interaction.editReply({ embeds: [embed] });
             }
           );
         }
       );
     } else if (subcommand === 'show') {
+      // Defer the reply ephemerally as all responses in this block are ephemeral
+      await interaction.deferReply({ ephemeral: true });
+
       db.all(
         `SELECT anime_title FROM watchlists WHERE user_id = ?`,
         [userId],
@@ -258,7 +264,7 @@ export default {
               .setColor('Red')
               .setTitle('Error Fetching Watchlist')
               .setDescription('An error occurred while fetching your watchlist. Please try again later.');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.editReply({ embeds: [embed] });
           }
 
           if (!rows || rows.length === 0) {
@@ -266,7 +272,7 @@ export default {
               .setColor('Yellow')
               .setTitle('Watchlist Empty')
               .setDescription('Your watchlist is currently empty.');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.editReply({ embeds: [embed] });
           }
 
           const watchlistDisplay = rows
@@ -277,7 +283,7 @@ export default {
             .setColor('Blue')
             .setTitle('Your Watchlist')
             .setDescription(watchlistDisplay);
-          interaction.reply({ embeds: [embed], ephemeral: true });
+          interaction.editReply({ embeds: [embed] });
         }
       );
     }
