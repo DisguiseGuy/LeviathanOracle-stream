@@ -63,7 +63,7 @@ async function checkForNewReleases() {
           const embed = {
             color: 0x0099ff,
             title: `New Episode of ${animeDetails.title.english || animeDetails.title.romaji} Released!`,
-            description: `Episode ${episodeNumber} is now available!\nAired at: ${utcAiringTime} UTC`,
+            description: `Episode ${episodeNumber} is now available!\nAired at: ${utcAiringTime} UTC. Remember that the episode might take some time depending on what platform you are watching.`,
             timestamp: new Date(row.next_airing_at),
             thumbnail: { url: animeDetails.coverImage.large },
             footer: { text: 'Episode just released!' },
