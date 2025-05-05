@@ -44,12 +44,6 @@ async function checkForNewReleases() {
           // 2. Fetch latest anime details only if the episode might have aired
           const animeDetails = await fetchAnimeDetailsById(row.anime_id);
 
-          // Check if fetch was successful (assuming fetchAnimeDetailsById returns null/undefined on error or if details are missing)
-          if (!animeDetails) {
-            console.error(`Failed to fetch details for anime ID ${row.anime_id}. Skipping.`);
-            continue; // Skip to the next watchlist entry
-          }
-
           // 3. Notify the user for the episode that just aired
           const user = await client.users.fetch(row.user_id);
 
