@@ -26,7 +26,7 @@ const client = new Client({
 client.commands = new Collection();
 let commandFiles = [];
 try {
-  commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+  commandFiles = fs.readdirSync('src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 } catch (err) {
   console.error('Error reading command files:', err);
 }
