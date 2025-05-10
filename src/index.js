@@ -6,6 +6,14 @@ import { fetchAnimeDetailsById } from './utils/anilist.js';
 
 const { Client, GatewayIntentBits, Collection } = pkg;
 
+// Global error handlers to prevent bot from crashing
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -16,12 +24,21 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-const commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+let commandFiles = [];
+try {
+  commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+} catch (err) {
+  console.error('Error reading command files:', err);
+}
 
 for (const file of commandFiles) {
-  const commandModule = await import(`./commands/${file}`);
-  const command = commandModule.default; // Access the default export
-  client.commands.set(command.data.name, command);
+  try {
+    const commandModule = await import(`./commands/${file}`);
+    const command = commandModule.default; // Access the default export
+    client.commands.set(command.data.name, command);
+  } catch (err) {
+    console.error(`Failed to load command ${file}:`, err);
+  }
 }
 
 // --- Scheduler State ---
@@ -123,36 +140,40 @@ function setLastPollTimestamp(ts) {
 }
 
 client.once('ready', () => {
-  client.user.setPresence({
-    status: 'online',
-    activities: [{
-      name: 'Sea of Knowledge',
-      type: ActivityType.Listening,
-    }],
-  });
-  console.log(`Logged in as ${client.user.tag}!`);
+  try {
+    client.user.setPresence({
+      status: 'online',
+      activities: [{
+        name: 'Sea of Knowledge',
+        type: ActivityType.Listening,
+      }],
+    });
+    console.log(`Logged in as ${client.user.tag}!`);
 
-  // --- Rehydrate all scheduled notifications on startup ---
-  db.all(`SELECT * FROM watchlists`, (err, rows) => {
-    if (err) return console.error('DB Select Error:', err);
-    for (const row of rows) {
-      if (row.next_airing_at && row.next_airing_at > Date.now()) {
-        scheduleNotification(row, client);
+    // --- Rehydrate all scheduled notifications on startup ---
+    db.all(`SELECT * FROM watchlists`, (err, rows) => {
+      if (err) return console.error('DB Select Error:', err);
+      for (const row of rows) {
+        if (row.next_airing_at && row.next_airing_at > Date.now()) {
+          scheduleNotification(row, client);
+        }
       }
-    }
-  });
+    });
 
-  // --- Fallback polling every hour ---
-  getLastPollTimestamp((lastPoll) => {
-    fallbackPoll(client, lastPoll);
-    setLastPollTimestamp(Date.now());
-    setInterval(() => {
-      getLastPollTimestamp((lastPoll2) => {
-        fallbackPoll(client, lastPoll2);
-        setLastPollTimestamp(Date.now());
-      });
-    }, 3600000);
-  });
+    // --- Fallback polling every hour ---
+    getLastPollTimestamp((lastPoll) => {
+      fallbackPoll(client, lastPoll);
+      setLastPollTimestamp(Date.now());
+      setInterval(() => {
+        getLastPollTimestamp((lastPoll2) => {
+          fallbackPoll(client, lastPoll2);
+          setLastPollTimestamp(Date.now());
+        });
+      }, 3600000);
+    });
+  } catch (err) {
+    console.error('Error in ready event:', err);
+  }
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -164,10 +185,16 @@ client.on('interactionCreate', async (interaction) => {
     try {
       await command.execute(interaction);
     } catch (error) {
-      console.error(error);
-      await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+      console.error('Command execution error:', error);
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+      } else {
+        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+      }
     }
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN).catch(err => {
+  console.error('Failed to login:', err);
+});

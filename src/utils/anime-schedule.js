@@ -20,9 +20,14 @@ export const fetchDailySchedule = async (day, airType = 'all') => {
     if (response.data && response.data.length > 0) {
       const dayOfWeek = day.toLowerCase();
       const filteredData = response.data.filter(anime => {
-        const date = new Date(anime.episodeDate);
-        const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-        return weekday === dayOfWeek;
+        try {
+          const date = new Date(anime.episodeDate);
+          const weekday = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+          return weekday === dayOfWeek;
+        } catch (err) {
+          console.error('Error parsing episodeDate:', err);
+          return false;
+        }
       });
 
       return filteredData;

@@ -34,7 +34,7 @@ export async function fetchAnimeDetails(search) {
     return response.data.data.Page.media; // Return an array of anime
   } catch (error) {
     console.error('Error fetching anime details:', error.response?.data || error.message);
-    throw error;
+    return [];
   }
 }
 
@@ -69,6 +69,6 @@ export async function fetchAnimeDetailsById(id) {
     return response.data.data.Media;
   } catch (error) {
     console.error('Error fetching anime details by ID:', error.response?.data || error.message);
-    throw error;
+    return null;
   }
 }

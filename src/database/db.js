@@ -15,6 +15,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+db.on('error', (err) => {
+  console.error('Database error event:', err);
+});
+
 // Create the watchlists and users tables if they don't exist
 db.serialize(() => {
   db.run(`
