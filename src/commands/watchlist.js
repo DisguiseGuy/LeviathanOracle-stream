@@ -175,10 +175,12 @@ export default {
             return interaction.editReply({ embeds: [embed] });
           }
 
-          // Find a match by comparing input to anime_title (case-insensitive)
-          const matchedRow = rows.find(row =>
-            row.anime_title.toLowerCase() === inputTitle
-          );
+          // Find a match by comparing input to anime_title (case-insensitive, partial match)
+          const inputWords = inputTitle.split(/\s+/).filter(Boolean);
+          const matchedRow = rows.find(row => {
+            const titleLower = row.anime_title.toLowerCase();
+            return inputWords.every(word => titleLower.includes(word));
+          });
 
           // If not found, try fetching AniList details for more title variants
           if (!matchedRow) {
@@ -192,7 +194,8 @@ export default {
                   animeDetails.title.native
                 ].filter(Boolean).map(t => t.toLowerCase());
 
-                if (possibleTitles.includes(inputTitle)) {
+                // Partial match for any title variant
+                if (possibleTitles.some(title => inputWords.every(word => title.includes(word)))) {
                   // Found a match, remove it
                   db.run(
                     `DELETE FROM watchlists WHERE user_id = ? AND anime_id = ?`,
