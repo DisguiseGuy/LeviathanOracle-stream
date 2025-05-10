@@ -46,6 +46,20 @@ db.serialize(() => {
       console.log('Users table created successfully');
     }
   });
+
+  // New: Table to store last poll timestamp for restart-proof progress
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bot_state (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Error creating bot_state table:', err);
+    } else {
+      console.log('Bot state table created successfully');
+    }
+  });
 });
 
 export default db;
