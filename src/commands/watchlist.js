@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
 import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import db from '../database/db.js';
-import { fetchAnimeDetailsById } from '../utils/anilist.js';
+import { fetchAnimeDetails } from '../utils/anilist.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -38,7 +38,7 @@ export default {
 
       try {
         // Fetch anime details from AniList API
-        const animeList = await fetchAnimeDetailsById(title); // Modify fetchAnimeDetails to return multiple results if needed
+        const animeList = await fetchAnimeDetails(title); // Modify fetchAnimeDetails to return multiple results if needed
 
         if (!Array.isArray(animeList) || animeList.length === 0) {
           const embed = new EmbedBuilder()
@@ -187,7 +187,7 @@ export default {
             // Try to find by fetching AniList details for each anime_id
             for (const row of rows) {
               try {
-                const animeDetails = await fetchAnimeDetailsById(row.anime_title);
+                const animeDetails = await fetchAnimeDetails(row.anime_title);
                 const possibleTitles = [
                   animeDetails.title.english,
                   animeDetails.title.romaji,
