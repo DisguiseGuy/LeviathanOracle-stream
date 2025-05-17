@@ -60,3 +60,8 @@ export async function ensureAnimeId(titleOrId) {
     throw new Error(`Failed to find anime: ${error.message}`);
   }
 }
+
+// Fetch anime details
+export async function fetchAnimeDetails(search) {
+  // ...existing code...
+}
