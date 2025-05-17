@@ -71,8 +71,15 @@ async function sendNotification(row, animeDetails, client) {
 // --- Scheduler: Schedule a notification ---
 function scheduleNotification(row, client) {
   const delay = row.next_airing_at - Date.now();
-  if (delay <= 0) return; // Already passed, fallback polling will handle
-  if (scheduledTimeouts.has(row.id)) clearTimeout(scheduledTimeouts.get(row.id));
+  if (delay <= 0) {
+    console.log(`Skipping schedule for anime ${row.anime_id}: Already passed, fallback polling will handle`);
+    return;
+  }
+  if (scheduledTimeouts.has(row.id)) {
+    console.log(`Clearing existing timeout for watchlist ID ${row.id}`);
+    clearTimeout(scheduledTimeouts.get(row.id));
+  }
+  console.log(`Scheduling notification for anime ${row.anime_id}, watchlist ID ${row.id} in ${Math.floor(delay/1000/60)} minutes`);
   const timeout = setTimeout(async () => {
     try {
       const animeDetails = await fetchAnimeDetailsById(row.anime_id);
@@ -96,14 +103,19 @@ function scheduleNotification(row, client) {
     }
   }, delay);
   scheduledTimeouts.set(row.id, timeout);
+  console.log(`Successfully scheduled notification for watchlist ID ${row.id}`);
 }
 
 // --- Fallback Polling ---
 async function fallbackPoll(client, lastPollTime) {
+  console.log(`Starting fallback poll, checking for episodes aired since ${new Date(lastPollTime).toISOString()}`);
   db.all(`SELECT * FROM watchlists`, async (err, rows) => {
     if (err) return console.error('DB Select Error:', err);
+    console.log(`Retrieved ${rows.length} watchlist entries to check`);
+    let processedCount = 0;
     for (const row of rows) {
       if (row.next_airing_at && row.next_airing_at > lastPollTime && row.next_airing_at <= Date.now()) {
+        console.log(`Processing watchlist ID ${row.id} for anime ${row.anime_id}`);
         try {
           const animeDetails = await fetchAnimeDetailsById(row.anime_id);
           await sendNotification(row, animeDetails, client);
@@ -120,23 +132,43 @@ async function fallbackPoll(client, lastPollTime) {
             row.next_airing_at = animeDetails.nextAiringEpisode.airingAt * 1000;
             scheduleNotification(row, client);
           }
+          console.log(`Successfully processed notification for anime ${row.anime_id}`);
         } catch (e) {
-          console.error('Error in fallback poll notification:', e);
+          console.error(`Error in fallback poll notification for anime ${row.anime_id}:`, e);
         }
       }
+      processedCount++;
     }
+    console.log(`Fallback poll completed. Processed ${processedCount} entries`);
   });
 }
 
 // --- Restore last poll timestamp ---
 function getLastPollTimestamp(cb) {
+  console.log('Retrieving last poll timestamp from database');
   db.get(`SELECT value FROM bot_state WHERE key = 'last_poll'`, (err, row) => {
-    if (err || !row) cb(0);
-    else cb(Number(row.value));
+    if (err) {
+      console.error('Error retrieving last poll timestamp:', err);
+      cb(0);
+    } else if (!row) {
+      console.log('No previous poll timestamp found, using default value 0');
+      cb(0);
+    } else {
+      console.log(`Retrieved last poll timestamp: ${new Date(Number(row.value)).toISOString()}`);
+      cb(Number(row.value));
+    }
   });
 }
+
 function setLastPollTimestamp(ts) {
-  db.run(`INSERT OR REPLACE INTO bot_state (key, value) VALUES ('last_poll', ?)`, [String(ts)]);
+  console.log(`Updating last poll timestamp to ${new Date(ts).toISOString()}`);
+  db.run(`INSERT OR REPLACE INTO bot_state (key, value) VALUES ('last_poll', ?)`, [String(ts)], (err) => {
+    if (err) {
+      console.error('Error updating last poll timestamp:', err);
+    } else {
+      console.log('Successfully updated last poll timestamp');
+    }
+  });
 }
 
 client.once('ready', () => {
@@ -151,20 +183,29 @@ client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
     // --- Rehydrate all scheduled notifications on startup ---
+    console.log('Starting to rehydrate scheduled notifications');
     db.all(`SELECT * FROM watchlists`, (err, rows) => {
-      if (err) return console.error('DB Select Error:', err);
+      if (err) return console.error('DB Select Error during rehydration:', err);
+      console.log(`Found ${rows.length} watchlist entries to rehydrate`);
+      let scheduledCount = 0;
       for (const row of rows) {
         if (row.next_airing_at && row.next_airing_at > Date.now()) {
           scheduleNotification(row, client);
+          scheduledCount++;
         }
       }
+      console.log(`Rehydration complete. Scheduled ${scheduledCount} notifications`);
     });
 
     // --- Fallback polling every hour ---
+    console.log('Initializing hourly fallback polling system');
     getLastPollTimestamp((lastPoll) => {
+      console.log('Starting initial fallback poll');
       fallbackPoll(client, lastPoll);
       setLastPollTimestamp(Date.now());
+      console.log('Setting up hourly interval for fallback polling');
       setInterval(() => {
+        console.log('Running hourly fallback poll check');
         getLastPollTimestamp((lastPoll2) => {
           fallbackPoll(client, lastPoll2);
           setLastPollTimestamp(Date.now());
