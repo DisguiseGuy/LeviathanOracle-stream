@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import db from '../database/db.js';
 import { fetchAnimeDetails } from '../utils/anilist.js';
+import { scheduleNotification } from '../index.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -120,6 +121,20 @@ export default {
                       return i.followUp({ embeds: [embed], ephemeral: true });
                     }
 
+                    // Schedule notification for this new watchlist entry if nextAiringAt exists
+                    if (nextAiringAt) {
+                      // Get the last inserted row id
+                      const newRow = {
+                        id: this.lastID,
+                        user_id: userId,
+                        anime_id: animeId,
+                        anime_title: displayTitle,
+                        next_airing_at: nextAiringAt
+                      };
+                      console.log(`[Watchlist] Scheduling notification for user ${userId}, anime ${animeId}, at ${new Date(nextAiringAt).toISOString()} (row id: ${this.lastID})`);
+                      scheduleNotification(newRow, interaction.client);
+                    }
+
                     const embed = new EmbedBuilder()
                       .setColor('Green')
                       .setTitle('Anime Added')
@@ -175,10 +190,12 @@ export default {
             return interaction.editReply({ embeds: [embed] });
           }
 
-          // Find a match by comparing input to anime_title (case-insensitive)
-          const matchedRow = rows.find(row =>
-            row.anime_title.toLowerCase() === inputTitle
-          );
+          // Find a match by comparing input to anime_title (case-insensitive, partial match)
+          const inputWords = inputTitle.split(/\s+/).filter(Boolean);
+          const matchedRow = rows.find(row => {
+            const titleLower = row.anime_title.toLowerCase();
+            return inputWords.every(word => titleLower.includes(word));
+          });
 
           // If not found, try fetching AniList details for more title variants
           if (!matchedRow) {
@@ -192,7 +209,8 @@ export default {
                   animeDetails.title.native
                 ].filter(Boolean).map(t => t.toLowerCase());
 
-                if (possibleTitles.includes(inputTitle)) {
+                // Partial match for any title variant
+                if (possibleTitles.some(title => inputWords.every(word => title.includes(word)))) {
                   // Found a match, remove it
                   db.run(
                     `DELETE FROM watchlists WHERE user_id = ? AND anime_id = ?`,

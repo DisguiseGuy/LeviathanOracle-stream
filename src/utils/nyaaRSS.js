@@ -6,11 +6,21 @@ const NYAA_RSS_FEED_URL = 'https://nyaa.si/?page=rss';
 
 // Function to filter English-translated anime items
 export function filterEnglishAnimeItems(items) {
-  const englishKeywords = ['eng', 'english', 'sub', 'dub', 'subtitled'];
-  return items.filter(item => {
-    const title = item.title.toLowerCase();
-    return englishKeywords.some(keyword => title.includes(keyword));
-  });
+  try {
+    const englishKeywords = ['eng', 'english', 'sub', 'dub', 'subtitled'];
+    return items.filter(item => {
+      try {
+        const title = item.title.toLowerCase();
+        return englishKeywords.some(keyword => title.includes(keyword));
+      } catch (err) {
+        console.error('Error processing item title:', err);
+        return false;
+      }
+    });
+  } catch (err) {
+    console.error('Error filtering English anime items:', err);
+    return [];
+  }
 }
 
 // Function to fetch RSS feed with retries
@@ -20,7 +30,10 @@ export async function fetchRSSFeedWithRetries(url, retries = 3, delay = 2000) {
       const feed = await parser.parseURL(url);
       return feed;
     } catch (error) {
-      if (i === retries - 1) throw error;
+      if (i === retries - 1) {
+        console.error('RSS fetch failed after retries:', error);
+        throw error;
+      }
       console.warn(`Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -44,6 +57,10 @@ export async function fetchEnglishAnimeFromNyaa(interaction) {
     await interaction.reply({ embeds: [embed] });
   } catch (error) {
     console.error('Error fetching or parsing the RSS feed:', error);
-    await interaction.reply({ content: 'Error fetching or parsing the RSS feed.', ephemeral: true });
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'Error fetching or parsing the RSS feed.', ephemeral: true });
+    } else {
+      await interaction.followUp({ content: 'Error fetching or parsing the RSS feed.', ephemeral: true });
+    }
   }
 }

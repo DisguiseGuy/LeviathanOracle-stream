@@ -63,10 +63,10 @@ export async function fetchAniListUser(username) {
     return response.data.data.User;
   } catch (error) {
     console.error('AniList API Error:', error);
-    throw new Error('Failed to fetch AniList user data.');
+    return null;
   }
 }
-// Added fetchMangaDetails function
+
 export async function fetchMangaDetails(mangaTitle) {
   const query = `
     query ($search: String) {
@@ -91,6 +91,6 @@ export async function fetchMangaDetails(mangaTitle) {
     return response.data.data.Media;
   } catch (error) {
     console.error('AniList API Error:', error);
-    throw new Error('Failed to fetch manga details.');
+    return null;
   }
 }

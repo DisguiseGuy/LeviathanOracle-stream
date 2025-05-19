@@ -12,42 +12,50 @@ export default {
         .setRequired(true)
     ),
   async execute(interaction) {
-    // Defer the reply right away so the interaction doesn’t timeout
-    await interaction.deferReply({ ephemeral: false });
-
     try {
-      // Get the user’s search term.
-      const query = interaction.options.getString('query');
+      await interaction.deferReply({ ephemeral: false });
 
-      // Build the RSS feed URL with the user’s search term.
-      const url = `https://nyaa.si/?page=rss&f=0&c=0_0&q=${encodeURIComponent(query)}`;
+      try {
+        // Get the user’s search term.
+        const query = interaction.options.getString('query');
 
-      // Fetch and filter items.
-      const feed = await fetchRSSFeedWithRetries(url);
-      const englishAnimeItems = filterEnglishAnimeItems(feed.items);
+        // Build the RSS feed URL with the user’s search term.
+        const url = `https://nyaa.si/?page=rss&f=0&c=0_0&q=${encodeURIComponent(query)}`;
 
-      if (englishAnimeItems.length === 0) {
-        await interaction.editReply(`No results found for "${query}".`);
-        return;
+        // Fetch and filter items.
+        const feed = await fetchRSSFeedWithRetries(url);
+        const englishAnimeItems = filterEnglishAnimeItems(feed.items);
+
+        if (englishAnimeItems.length === 0) {
+          await interaction.editReply(`No results found for "${query}".`);
+          return;
+        }
+
+        // Create the embed with the first 10 items.
+        const embed = {
+          color: 0x0099ff,
+          title: `Search Results for "${query}"`,
+          fields: englishAnimeItems.slice(0, 10).map((item, i) => ({
+            name: `${i + 1}. ${item.title}`,
+            value: item.link,
+          })),
+          timestamp: new Date(),
+        };
+
+        await interaction.editReply({ embeds: [embed] });
+      } catch (error) {
+        console.error('Error fetching or parsing the RSS feed:', error);
+        await interaction.editReply({
+          content: 'Error fetching or parsing the RSS feed. Please try again later.',
+        });
       }
-
-      // Create the embed with the first 10 items.
-      const embed = {
-        color: 0x0099ff,
-        title: `Search Results for "${query}"`,
-        fields: englishAnimeItems.slice(0, 10).map((item, i) => ({
-          name: `${i + 1}. ${item.title}`,
-          value: item.link,
-        })),
-        timestamp: new Date(),
-      };
-
-      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error('Error fetching or parsing the RSS feed:', error);
-      await interaction.editReply({
-        content: 'Error fetching or parsing the RSS feed. Please try again later.',
-      });
+      console.error('nyaa command error:', error);
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+      } else {
+        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+      }
     }
   },
 };
