@@ -31,7 +31,6 @@ try {
   console.error('Error reading command files:', err);
 }
 
-// Bruh if you want this block to support ES modules, DM me.
 (async () => {
   for (const file of commandFiles) {
     try {
