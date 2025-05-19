@@ -26,20 +26,22 @@ const client = new Client({
 client.commands = new Collection();
 let commandFiles = [];
 try {
-  commandFiles = fs.readdirSync('src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
+  commandFiles = fs.readdirSync('LeviathanOracle-stream/src/commands').filter(file => file.endsWith('.js')); // Change the readdirSync. In my case I seemed to have errors so I changed the path to avoid that.
 } catch (err) {
   console.error('Error reading command files:', err);
 }
 
-for (const file of commandFiles) {
-  try {
-    const commandModule = await import(`./commands/${file}`);
-    const command = commandModule.default; // Access the default export
-    client.commands.set(command.data.name, command);
-  } catch (err) {
-    console.error(`Failed to load command ${file}:`, err);
+(async () => {
+  for (const file of commandFiles) {
+    try {
+      const commandModule = await import(`./commands/${file}`);
+      const command = commandModule.default;
+      client.commands.set(command.data.name, command);
+    } catch (err) {
+      console.error(`Failed to load command ${file}:`, err);
+    }
   }
-}
+})();
 
 // --- Scheduler State ---
 const scheduledTimeouts = new Map(); // key: watchlist id, value: timeout
@@ -239,3 +241,5 @@ client.on('interactionCreate', async (interaction) => {
 client.login(process.env.DISCORD_TOKEN).catch(err => {
   console.error('Failed to login:', err);
 });
+
+export { scheduleNotification };

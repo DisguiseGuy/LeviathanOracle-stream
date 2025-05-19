@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from '@discordjs/builders';
 import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import db from '../database/db.js';
 import { fetchAnimeDetails } from '../utils/anilist.js';
+import { scheduleNotification } from '../index.js';
 
 export default {
   data: new SlashCommandBuilder()
@@ -118,6 +119,20 @@ export default {
                         .setTitle('Error Adding to Watchlist')
                         .setDescription('Could not add the anime to your watchlist. Please try again later.');
                       return i.followUp({ embeds: [embed], ephemeral: true });
+                    }
+
+                    // Schedule notification for this new watchlist entry if nextAiringAt exists
+                    if (nextAiringAt) {
+                      // Get the last inserted row id
+                      const newRow = {
+                        id: this.lastID,
+                        user_id: userId,
+                        anime_id: animeId,
+                        anime_title: displayTitle,
+                        next_airing_at: nextAiringAt
+                      };
+                      console.log(`[Watchlist] Scheduling notification for user ${userId}, anime ${animeId}, at ${new Date(nextAiringAt).toISOString()} (row id: ${this.lastID})`);
+                      scheduleNotification(newRow, interaction.client);
                     }
 
                     const embed = new EmbedBuilder()
