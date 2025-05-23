@@ -178,8 +178,8 @@ client.once('ready', () => {
     client.user.setPresence({
       status: 'online',
       activities: [{
-        name: 'Sea of Knowledge',
-        type: ActivityType.Listening,
+        name: 'Your Notifications',
+        type: ActivityType.Watching,
       }],
     });
     console.log(`Logged in as ${client.user.tag}!`);
