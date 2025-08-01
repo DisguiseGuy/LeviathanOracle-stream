@@ -5,3 +5,4 @@ roadmap.md
 tests
 .git
 .env
+src/database/database.db
