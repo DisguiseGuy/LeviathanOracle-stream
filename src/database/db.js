@@ -15,6 +15,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+db.on('error', (err) => {
+  console.error('Database error event:', err);
+});
+
 // Create the watchlists and users tables if they don't exist
 db.serialize(() => {
   db.run(`
@@ -44,6 +48,20 @@ db.serialize(() => {
       console.error('Error creating users table:', err);
     } else {
       console.log('Users table created successfully');
+    }
+  });
+
+  // New: Table to store last poll timestamp for restart-proof progress
+  db.run(`
+    CREATE TABLE IF NOT EXISTS bot_state (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    )
+  `, (err) => {
+    if (err) {
+      console.error('Error creating bot_state table:', err);
+    } else {
+      console.log('Bot state table created successfully');
     }
   });
 });
