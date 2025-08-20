@@ -4,7 +4,7 @@ import { Routes } from 'discord-api-types/v9';
 
 const clientId = process.env.DISCORD_BOT_ID;
 const guildId = process.env.GUILD_ID;
-const token = process.env.DISCORD_TOKEN;
+const token = process.env.DISCORD_BOT_TOKEN;
 
 console.log('Client ID:', clientId);
 console.log('Guild ID:', guildId);

@@ -238,7 +238,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN).catch(err => {
+client.login(process.env.DISCORD_BOT_TOKEN).catch(err => {
   console.error('Failed to login:', err);
 });
 
