@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 import db from '../database/db.js';
-import { fetchAnimeDetails } from '../utils/anilist.js';
+import { fetchAnimeDetails, fetchAnimeDetailsById } from '../utils/anilist.js';
 import { scheduleNotification } from '../index.js';
 
 export default {
@@ -15,7 +15,8 @@ export default {
         .addStringOption(option =>
           option.setName('title')
             .setDescription('Anime title to add')
-            .setRequired(true)))
+            .setRequired(true)
+            .setAutocomplete(true)))
     .addSubcommand(subcommand =>
       subcommand
         .setName('remove')
@@ -35,6 +36,45 @@ export default {
 
     if (subcommand === 'add') {
       const title = interaction.options.getString('title');
+  // Quick-add by AniList numeric ID if user provided a number
+  const numericId = /^\s*\d+\s*$/;
+  if (numericId.test(title)) {
+        // Treat title as numeric AniList ID and fetch details directly
+        const animeId = Number(title.trim());
+        await interaction.deferReply({ ephemeral: true });
+        try {
+          const selectedAnime = await fetchAnimeDetailsById(animeId);
+          if (!selectedAnime) {
+            return interaction.editReply({ content: 'Could not find anime with that AniList ID.', ephemeral: true });
+          }
+          // Insert directly (avoid duplicate)
+          db.get(`SELECT * FROM watchlists WHERE user_id = ? AND anime_id = ?`, [userId, animeId], (err, row) => {
+            if (err) {
+              console.error('DB Error:', err);
+              return interaction.editReply({ content: 'Database error while adding.', ephemeral: true });
+            }
+            if (row) return interaction.editReply({ content: 'Anime already in watchlist.', ephemeral: true });
+            const displayTitle = selectedAnime.title.english || selectedAnime.title.romaji || selectedAnime.title.native;
+            const nextAiringAt = selectedAnime.nextAiringEpisode?.airingAt * 1000 || null;
+            db.run(`INSERT INTO watchlists (user_id, anime_id, anime_title, next_airing_at) VALUES (?, ?, ?, ?)`, [userId, animeId, displayTitle, nextAiringAt], function(insertErr) {
+              if (insertErr) {
+                console.error('DB Insert Error:', insertErr);
+                return interaction.editReply({ content: 'Failed to add to watchlist.', ephemeral: true });
+              }
+              if (nextAiringAt) {
+                const newRow = { id: this.lastID, user_id: userId, anime_id: animeId, anime_title: displayTitle, next_airing_at: nextAiringAt };
+                scheduleNotification(newRow, interaction.client);
+              }
+              return interaction.editReply({ content: `**${displayTitle}** added to your watchlist.`, ephemeral: true });
+            });
+          });
+        } catch (err) {
+          console.error('Error fetching by ID:', err);
+          return interaction.editReply({ content: 'Error fetching anime details by ID.', ephemeral: true });
+        }
+        // After handling numeric quick-add, stop further processing
+        return;
+      }
       await interaction.deferReply();
 
       try {
@@ -49,120 +89,24 @@ export default {
           return interaction.editReply({ embeds: [embed], ephemeral: true });
         }
 
-        // Create buttons for selection
-        const buttons = animeList.map((anime, index) => {
-          let displayTitle = anime.title.english || anime.title.romaji || anime.title.native;
-          displayTitle = displayTitle.length > 80 ? displayTitle.substring(0, 77) + '...' : displayTitle;
-          return new ButtonBuilder()
-            .setCustomId(`add_anime_${anime.id}_${index}`)
-            .setLabel(displayTitle)
-            .setStyle(ButtonStyle.Primary);
-        });
+        // Instead of interactive buttons, present a compact selection embed and instruct
+        // the user to either re-run with the AniList ID (quick-add) or use autocomplete
+        // in the /watchlist add command for faster selection.
+        const truncate = (s, n) => (s && s.length > n ? s.substring(0, n - 1) + '…' : s || '');
+        const embed = new EmbedBuilder()
+          .setTitle('Search results (use autocomplete or quick-add by ID)')
+          .setColor(0x00AE86)
+          .setDescription('This command no longer uses interactive buttons. Use the autocomplete suggestions or pass a numeric AniList ID to add directly.')
+          .setTimestamp();
 
-        const rows = [];
-        for (let i = 0; i < buttons.length; i += 5) {
-          rows.push(new ActionRowBuilder().addComponents(buttons.slice(i, i + 5)));
+        for (let i = 0; i < Math.min(10, animeList.length); i++) {
+          const a = animeList[i];
+          const displayTitle = a.title.english || a.title.romaji || a.title.native || `#${a.id}`;
+          const short = truncate(displayTitle, 80);
+          embed.addFields({ name: `${i + 1}. ${short}`, value: `AniList ID: ${a.id}` });
         }
 
-        await interaction.editReply({ content: 'Select the anime you want to add to your watchlist:', components: rows });
-
-        const filter = i => i.customId.startsWith('add_anime_') && i.user.id === interaction.user.id;
-        const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
-
-        collector.on('collect', async i => {
-          try {
-            await i.update({ content: 'Adding anime to your watchlist...', components: [] });
-
-            const animeId = i.customId.split('_')[2];
-            const selectedAnime = animeList.find(anime => String(anime.id) === animeId);
-
-            if (!selectedAnime) {
-              return await i.followUp({ content: 'Anime not found. Please try again.', ephemeral: true });
-            }
-
-            const verifiedTitle = selectedAnime.title.romaji || selectedAnime.title.native || selectedAnime.title.english;
-
-            // Check if the anime is already in the watchlist
-            db.get(
-              `SELECT * FROM watchlists WHERE user_id = ? AND anime_id = ?`,
-              [userId, animeId],
-              (err, row) => {
-                if (err) {
-                  console.error('DB Error:', err);
-                  const embed = new EmbedBuilder()
-                    .setColor('Red')
-                    .setTitle('Database Error')
-                    .setDescription('An error occurred while accessing the database. Please try again later.');
-                  return i.followUp({ embeds: [embed], ephemeral: true });
-                }
-
-                if (row) {
-                  const embed = new EmbedBuilder()
-                    .setColor('Yellow')
-                    .setTitle('Already in Watchlist')
-                    .setDescription(`**${verifiedTitle}** is already in your watchlist.`);
-                  return i.followUp({ embeds: [embed], ephemeral: true });
-                }
-
-                // Add the anime to the watchlist
-                const displayTitle = selectedAnime.title.english || selectedAnime.title.romaji || selectedAnime.title.native;
-                const nextAiringAt = selectedAnime.nextAiringEpisode?.airingAt * 1000 || null;
-
-                db.run(
-                  `INSERT INTO watchlists (user_id, anime_id, anime_title, next_airing_at) VALUES (?, ?, ?, ?)`,
-                  [userId, animeId, displayTitle, nextAiringAt],
-                  function(insertErr) {
-                    if (insertErr) {
-                      console.error('DB Insert Error:', insertErr);
-                      const embed = new EmbedBuilder()
-                        .setColor('Red')
-                        .setTitle('Error Adding to Watchlist')
-                        .setDescription('Could not add the anime to your watchlist. Please try again later.');
-                      return i.followUp({ embeds: [embed], ephemeral: true });
-                    }
-
-                    // Schedule notification for this new watchlist entry if nextAiringAt exists
-                    if (nextAiringAt) {
-                      // Get the last inserted row id
-                      const newRow = {
-                        id: this.lastID,
-                        user_id: userId,
-                        anime_id: animeId,
-                        anime_title: displayTitle,
-                        next_airing_at: nextAiringAt
-                      };
-                      console.log(`[Watchlist] Scheduling notification for user ${userId}, anime ${animeId}, at ${new Date(nextAiringAt).toISOString()} (row id: ${this.lastID})`);
-                      scheduleNotification(newRow, interaction.client);
-                    }
-
-                    const embed = new EmbedBuilder()
-                      .setColor('Green')
-                      .setTitle('Anime Added')
-                      .setDescription(`**${verifiedTitle}** has been added to your watchlist.`);
-                    i.followUp({ embeds: [embed], ephemeral: true });
-                  }
-                );
-              }
-            );
-          } catch (error) {
-            console.error('Error adding anime to watchlist:', error);
-            const embed = new EmbedBuilder()
-              .setColor('Red')
-              .setTitle('Error Adding Anime')
-              .setDescription('An error occurred while adding the anime to your watchlist. Please try again later.');
-            i.followUp({ embeds: [embed], ephemeral: true });
-          }
-        });
-
-        collector.on('end', async collected => {
-          if (collected.size === 0) {
-            try {
-              await interaction.editReply({ content: 'Watchlist selection timed out.', components: [] });
-            } catch (error) {
-              console.error("Failed to edit interaction reply on collector end:", error);
-            }
-          }
-        });
+        await interaction.editReply({ embeds: [embed], ephemeral: true });
       } catch (error) {
         console.error('Error fetching anime details:', error);
         const embed = new EmbedBuilder()
@@ -304,6 +248,40 @@ export default {
           interaction.editReply({ embeds: [embed] });
         }
       );
+    }
+  }
+,
+
+  // Autocomplete handler for the "title" option on the add subcommand
+  async autocomplete(interaction) {
+    try {
+      const focused = interaction.options.getFocused(true);
+      const value = focused.value;
+      // If user typed a numeric ID, suggest that as a direct-add option
+      if (/^\d+$/.test(value)) {
+        await interaction.respond([
+          { name: `Add AniList ID ${value}`, value: value }
+        ]);
+        return;
+      }
+
+      // Otherwise, call AniList search for suggestions
+      const results = await fetchAnimeDetails(value);
+      if (!Array.isArray(results) || results.length === 0) {
+        await interaction.respond([]);
+        return;
+      }
+
+      const truncate = (s, n) => (s && s.length > n ? s.substring(0, n - 1) + '…' : s || '');
+      const suggestions = results.slice(0, 25).map(a => {
+        const titleEnglish = a.title?.english || a.title?.romaji || a.title?.native || `#${a.id}`;
+        const name = truncate(titleEnglish, 100);
+        return { name: name, value: String(a.id) };
+      });
+
+      await interaction.respond(suggestions);
+    } catch (err) {
+      console.error('Watchlist autocomplete error:', err);
     }
   }
 };

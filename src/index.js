@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import pkg, { ActivityType } from 'discord.js';
+import pkg from 'discord.js';
 import fs from 'fs';
 import db from './database/db.js';
 import { fetchAnimeDetailsById } from './utils/anilist.js';
 
-const { Client, GatewayIntentBits, Collection } = pkg;
+const { Client, GatewayIntentBits, Collection, ActivityType } = pkg;
 
 // Global error handlers to prevent bot from crashing
 process.on('unhandledRejection', (reason) => {
@@ -220,21 +220,37 @@ client.once('ready', () => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isCommand()) {
-    const command = client.commands.get(interaction.commandName.toLowerCase());
+  try {
+    // Autocomplete interaction (handled before command execution)
+    if (interaction.isAutocomplete()) {
+      const command = client.commands.get(interaction.commandName.toLowerCase());
+      if (!command || typeof command.autocomplete !== 'function') return;
+      try {
+        await command.autocomplete(interaction);
+      } catch (err) {
+        console.error('Autocomplete handler error:', err);
+      }
+      return;
+    }
 
-    if (!command) return;
+    if (interaction.isCommand()) {
+      const command = client.commands.get(interaction.commandName.toLowerCase());
 
-    try {
-      await command.execute(interaction);
-    } catch (error) {
-      console.error('Command execution error:', error);
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-      } else {
-        await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+      if (!command) return;
+
+      try {
+        await command.execute(interaction);
+      } catch (error) {
+        console.error('Command execution error:', error);
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+        } else {
+          await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true });
+        }
       }
     }
+  } catch (err) {
+    console.error('interactionCreate handler error:', err);
   }
 });
 
