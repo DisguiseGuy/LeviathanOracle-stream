@@ -3,6 +3,9 @@ const { GatewayIntentBits, MessageFlags } = require('discord.js');
 const path = require('path');
 const db = require('./schemas/db');
 const scheduler = require('./functions/notificationScheduler');
+const { validateConfig } = require('./utils/config-validator');
+
+validateConfig();
 
 const bot = new DiscoBase({
     clientOptions: {
@@ -47,8 +50,14 @@ const wrap = (commands, isPrefix) => {
     }
 };
 
-client.once('clientReady', () => {
-    require(path.join(__dirname, '../node_modules/discobase-core/admin/dashboard.js'))(client);
+client.once('clientReady', async () => {
+    try {
+        await db.initializeMigrations();
+    } catch (err) {
+        console.error('Failed to run migrations:', err);
+        process.exit(1);
+    }
+    
     scheduler.initialize(client);
     
     wrap(client.commands || [], false);
