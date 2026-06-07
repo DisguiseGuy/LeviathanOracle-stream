@@ -39,9 +39,6 @@ const LEVELS = {
 const DEFAULT_LEVEL = process.env.LOG_LEVEL?.toLowerCase() || 'info';
 const MIN_PRIORITY = LEVELS[DEFAULT_LEVEL]?.priority ?? 2;
 
-/**
- * Core Logging Logic
- */
 function _log(level, context, message, meta) {
   const cfg = LEVELS[level] || LEVELS.info;
   if (cfg.priority < MIN_PRIORITY) return;
@@ -63,9 +60,6 @@ function _log(level, context, message, meta) {
   console[method === 'warn' ? 'warn' : method === 'error' ? 'error' : 'log'](...output);
 }
 
-/**
- * Public API
- */
 const tracer = {
   start(context, meta) {
     const t0 = Date.now();
@@ -85,7 +79,6 @@ const tracer = {
   }
 };
 
-// Map standalone methods: tracer.info(ctx, msg, meta)
 Object.keys(LEVELS).forEach(level => {
   tracer[level] = (ctx, msg, meta) => _log(level, ctx, msg, meta);
 });
